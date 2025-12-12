@@ -1,19 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mayday Merry Christmas WebGL</title>
+    <title>五月天圣诞快乐 WebGL</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Cinzel:wght@400;700&display=swap');
 
         :root {
-            --color-bg: #0f2215;
-            /* Deep Matte Green */
-            --color-gold: #D4AF37;
-            --color-red: #C41E3A;
-            --font-main: 'Cinzel', serif;
+            --color-bg: #05140a;
+            /* 更深沉的墨绿 */
+            --color-gold: #F2D272;
+            /* 柔和金 */
+            --color-red: #D63345;
+            --font-main: 'Noto Serif SC', 'Cinzel', serif;
         }
 
         body,
@@ -24,7 +25,7 @@
             height: 100%;
             overflow: hidden;
             background-color: var(--color-bg);
-            background: radial-gradient(circle at center, #1a3c24 0%, #050f08 100%);
+            background: radial-gradient(circle at center, #0f2e1b 0%, #020804 100%);
             font-family: var(--font-main);
             color: var(--color-gold);
         }
@@ -55,14 +56,14 @@
 
         header {
             text-align: center;
-            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+            text-shadow: 0 0 10px rgba(242, 210, 114, 0.3);
         }
 
         h1 {
             font-size: 3rem;
             margin: 0;
             letter-spacing: 0.2rem;
-            background: linear-gradient(to bottom, #fff4cc, #D4AF37);
+            background: linear-gradient(to bottom, #fffcf5, #F2D272);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -72,16 +73,16 @@
             top: 2rem;
             right: 2rem;
             text-align: right;
-            background: rgba(0, 20, 10, 0.6);
+            background: rgba(0, 10, 5, 0.7);
             padding: 1rem;
-            border: 1px solid var(--color-gold);
+            border: 1px solid rgba(242, 210, 114, 0.3);
             border-radius: 8px;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(8px);
         }
 
         .status-item {
             margin: 0.5rem 0;
-            font-size: 0.9rem;
+            font-size: 1rem;
         }
 
         .status-value {
@@ -108,36 +109,36 @@
         .loader-btn {
             margin-top: 2rem;
             padding: 1rem 3rem;
-            background: transparent;
-            border: 2px solid var(--color-gold);
+            background: rgba(242, 210, 114, 0.1);
+            border: 1px solid var(--color-gold);
             color: var(--color-gold);
             font-family: var(--font-main);
             font-size: 1.2rem;
             cursor: pointer;
             transition: all 0.3s ease;
-            text-transform: uppercase;
             letter-spacing: 2px;
+            border-radius: 4px;
         }
 
         .loader-btn:hover {
             background: var(--color-gold);
             color: var(--color-bg);
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+            box-shadow: 0 0 30px rgba(242, 210, 114, 0.4);
         }
 
-        /* Hand Video Preview - Styled nicely */
+        /* Hand Video Preview */
         #video-container {
             position: absolute;
             bottom: 2rem;
             left: 2rem;
             width: 200px;
             height: 150px;
-            border: 2px solid var(--color-gold);
+            border: 1px solid rgba(242, 210, 114, 0.5);
             border-radius: 10px;
             overflow: hidden;
             opacity: 0.7;
             z-index: 2;
-            /* Above canvas */
+            /* Atop canvas */
             transform-origin: bottom left;
             transition: transform 0.3s ease;
         }
@@ -161,13 +162,18 @@
             bottom: 2rem;
             right: 2rem;
             text-align: right;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 1rem;
+            border-radius: 8px;
         }
 
         .key {
             color: var(--color-gold);
             font-weight: bold;
+            margin-right: 0.5rem;
         }
     </style>
 
@@ -196,26 +202,26 @@
 <body>
 
     <div id="loading-screen">
-        <h1>Merry Christmas</h1>
-        <p>Interactive 3D Experience</p>
-        <button id="start-btn" class="loader-btn">Enter Experience</button>
+        <h1>圣诞快乐</h1>
+        <p>五月天沉浸式 3D 体验</p>
+        <button id="start-btn" class="loader-btn">进入体验</button>
     </div>
 
     <div id="ui-layer">
         <header>
-            <h1>Mayday Xmas</h1>
+            <h1>Mayday Christmas</h1>
         </header>
 
         <div class="status-panel">
-            <div class="status-item">Mode: <span id="mode-display" class="status-value">Tree</span></div>
-            <div class="status-item">Hand: <span id="hand-display" class="status-value">Not Detected</span></div>
-            <div class="status-item">Gesture: <span id="gesture-display" class="status-value">-</span></div>
+            <div class="status-item">模式: <span id="mode-display" class="status-value">圣诞树</span></div>
+            <div class="status-item">手势识别: <span id="hand-display" class="status-value">未检测</span></div>
+            <div class="status-item">当前动作: <span id="gesture-display" class="status-value">-</span></div>
         </div>
 
         <div class="instructions">
-            <p><span class="key">Fist</span>: Tree Mode</p>
-            <p><span class="key">Open Palm</span>: Galaxy Mode</p>
-            <p><span class="key">Move Hand</span>: Rotate View</p>
+            <p><span class="key">握拳</span> 聚合圣诞树</p>
+            <p><span class="key">张开手掌</span> 散开漫游</p>
+            <p><span class="key">移动手掌</span> 旋转视角</p>
         </div>
     </div>
 
@@ -234,8 +240,8 @@
 
         // --- Configuration ---
         const CONFIG = {
-            count: 3000,
-            colors: [0x2A5F3A, 0xD4AF37, 0xC41E3A, 0xFFFFFF], // Green, Gold, Red, White
+            count: 2000,
+            colors: [0x2A5F3A, 0xF2D272, 0xD63345, 0xFFFFFF],
             photos: [
                 'picture/bule.png',
                 'picture/green.png',
@@ -249,7 +255,7 @@
         const STATE = {
             mode: 'TREE', // TREE, SCATTERED
             gesture: 'NONE',
-            targetMix: 0, // 0 for Tree, 1 for Scattered
+            targetMix: 0,
             mix: 0,
             mouse: new THREE.Vector2(),
             handPos: new THREE.Vector2()
@@ -258,16 +264,16 @@
         // --- Three.js Setup ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        // scene.fog = new THREE.FogExp2(0x0f2215, 0.02);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 0, 15);
+        camera.position.set(0, 0, 20);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
+        // Use Reinhard and lower exposure to fix blowout
+        renderer.toneMapping = THREE.ReinhardToneMapping;
+        renderer.toneMappingExposure = 1.0;
         container.appendChild(renderer.domElement);
 
         const controls = new OrbitControls(camera, renderer.domElement);
@@ -279,10 +285,12 @@
 
         // --- Post Processing ---
         const renderScene = new RenderPass(scene, camera);
+
+        // Bloom settings adjustments
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-        bloomPass.threshold = 0.2;
-        bloomPass.strength = 1.2;
-        bloomPass.radius = 0.5;
+        bloomPass.threshold = 0.4;  // Higher threshold = fewer things glow
+        bloomPass.strength = 0.5;   // Lower strength = less glare
+        bloomPass.radius = 0.3;     // Smaller radius = sharper glow
 
         const composer = new EffectComposer(renderer);
         composer.addPass(renderScene);
@@ -293,8 +301,6 @@
         const loadedTextures = CONFIG.photos.map(url => textureLoader.load(url));
 
         // --- Particles ---
-
-        // Geometry: Instanced Buffer
         const baseGeometry = new THREE.PlaneGeometry(0.5, 0.5);
         const instancedGeometry = new THREE.InstancedBufferGeometry();
         instancedGeometry.index = baseGeometry.index;
@@ -306,24 +312,24 @@
         const posTree = [];
         const posScattered = [];
         const colors = [];
-        const offsets = []; // For animation variation
-        const types = []; // 0: shape, 1: photo
+        const offsets = [];
+        const types = [];
 
         const colorPalette = new THREE.Color();
 
         for (let i = 0; i < particleCount; i++) {
-            // Tree position (Cone Spiral)
-            const angle = i * 0.1;
-            const height = (i / particleCount) * 10 - 5; // -5 to 5
-            const radius = (1 - (height + 5) / 10) * 4; // Tapering
-            const r = radius * Math.random(); // volume
+            // Tree: Spiral Cone
+            const angle = i * 0.15;
+            const height = (i / particleCount) * 12 - 6;
+            const radius = (1 - (height + 6) / 12) * 5;
+            const r = radius * Math.random();
             const x1 = Math.cos(angle) * r;
             const y1 = height;
             const z1 = Math.sin(angle) * r;
             posTree.push(x1, y1, z1);
 
-            // Scattered position (Random Box)
-            const range = 20;
+            // Scattered: Box
+            const range = 25;
             const x2 = (Math.random() - 0.5) * range;
             const y2 = (Math.random() - 0.5) * range;
             const z2 = (Math.random() - 0.5) * range;
@@ -333,12 +339,8 @@
             colorPalette.setHex(CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)]);
             colors.push(colorPalette.r, colorPalette.g, colorPalette.b);
 
-            // Offset
             offsets.push(Math.random() * 100);
-
-            // Type
-            // 90% shapes, 10% photos
-            types.push(Math.random() > 0.9 ? 1 : 0);
+            types.push(Math.random() > 0.95 ? 1 : 0);
         }
 
         instancedGeometry.setAttribute('aPosTree', new THREE.InstancedBufferAttribute(new Float32Array(posTree), 3));
@@ -372,7 +374,6 @@
                 varying vec2 vUv;
                 varying float vType;
 
-                // Noise function
                 vec3 snoiseVec3( vec3 x ){
                   float s  = sin(x.x);
                   float c  = cos(x.y);
@@ -384,47 +385,18 @@
                     vColor = aColor;
                     vType = aType;
 
-                    // Interpolate positions
                     vec3 pos = mix(aPosTree, aPosScattered, uMix);
 
-                    // Add floating motion
-                    float noiseFreq = 0.5;
-                    float noiseAmp = 0.1;
+                    // Float animation
+                    float noiseFreq = 0.3;
+                    float noiseAmp = 0.15;
                     vec3 noisePos = vec3(pos.x * noiseFreq + uTime * 0.5, pos.y * noiseFreq + uTime * 0.5, pos.z * noiseFreq);
                     pos += snoiseVec3(noisePos + aOffset) * noiseAmp;
 
-                    // Spin for scattered mode
-                    if (uMix > 0.5) {
-                         // Add some rotation if needed
-                    }
-
-                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-                    
-                    // Billboard effect (always face camera) - modified for InstancedMesh
-                    // Actually, simple billboard is tricky in vertex shader without rotate, 
-                    // but for Planes looking at camera:
-                    // We can just add vertex position to the instance center in view space
-                    
-                    // Standard way for billboarding in vertex shader:
-                    // 1. Get instance center in view space
-                    // 2. Add vertex offset (scaled)
-                    
-                    // However, we are transforming "pos" which is WORLD space (mostly).
-                    // Let's stick to world space simple billboard
-                    
-                    // Alternative: standard MVP
-                    // gl_Position = projectionMatrix * mvPosition;
-                    
-                    // Let's try to make them face camera
+                    // Billboard
                     vec4 instanceCenter = modelViewMatrix * vec4(pos, 1.0);
-                    // This is center in view space.
-                    // Now add the vertex offset (position) which is the plane geometry (-0.5 to 0.5)
-                    // We assume the plane is XY.
-                    
-                    float scale = (aType > 0.5) ? 1.5 : 0.5; // Photos bigger
-                    
-                    vec3 vertexOffset = position * scale;
-                    instanceCenter.xyz += vertexOffset;
+                    float scale = (aType > 0.5) ? 2.5 : 0.8; 
+                    instanceCenter.xyz += position * scale;
                     
                     gl_Position = projectionMatrix * instanceCenter;
                 }
@@ -444,12 +416,6 @@
                     vec4 finalColor;
 
                     if (vType > 0.5) {
-                        // It's a photo! Randomly pick a texture based on Color maybe? 
-                        // Or just cycle through based on some hash. Here we simplistically pick one or blend.
-                        // GLSL doesn't support array access by non-constant easily in WebGL1, but WebGL2 does.
-                        // We'll just define one for now or use vColor to mix.
-                        
-                        // Hack: use color R channel to pick texture 0-4
                         float idx = floor(vColor.r * 5.0);
                         vec4 texCol;
                         if(idx < 1.0) texCol = texture2D(uTex0, vUv);
@@ -459,13 +425,21 @@
                         else texCol = texture2D(uTex4, vUv);
                         
                         finalColor = texCol;
-                        if (finalColor.a < 0.1) discard;
+                        if (finalColor.a < 0.2) discard;
                     } else {
-                        // It's a shape (circle/glow)
-                        float dist = length(vUv - 0.5);
-                        if (dist > 0.5) discard;
-                        float alpha = 1.0 - smoothstep(0.3, 0.5, dist);
-                        finalColor = vec4(vColor, alpha);
+                        // Soft circle
+                        vec2 center = vUv - 0.5;
+                        float dist = length(center);
+                        
+                        // Sharper, smaller glowing point to reduce full-screen washout
+                        float alpha = 1.0 - smoothstep(0.05, 0.5, dist);
+                        
+                        // Solid core
+                        float core = 1.0 - smoothstep(0.0, 0.1, dist);
+                        
+                        vec3 particleColor = mix(vColor, vec3(1.0), core * 0.7);
+                        
+                        finalColor = vec4(particleColor, alpha * 0.9);
                     }
 
                     gl_FragColor = finalColor;
@@ -473,7 +447,8 @@
             `,
             transparent: true,
             depthWrite: false,
-            blending: THREE.AdditiveBlending,
+            // SWITCHED BLENDING to NormalBlending to prevent light accumulation blowout
+            blending: THREE.NormalBlending,
             side: THREE.DoubleSide
         });
 
@@ -483,58 +458,44 @@
         // --- Gesture Logic ---
         function updateState(handLandmarks) {
             if (!handLandmarks) {
-                document.getElementById('hand-display').innerText = "Not Detected";
-                document.getElementById('hand-display').style.color = "#C41E3A";
+                document.getElementById('hand-display').innerText = "未检测";
+                document.getElementById('hand-display').style.color = "#D63345";
                 STATE.gesture = 'NONE';
-                controls.autoRotate = true; // Idle rotate
+                controls.autoRotate = true;
                 return;
             }
 
-            document.getElementById('hand-display').innerText = "Detected";
-            document.getElementById('hand-display').style.color = "#D4AF37";
+            document.getElementById('hand-display').innerText = "已检测";
+            document.getElementById('hand-display').style.color = "#F2D272";
             controls.autoRotate = false;
 
-            // Simple Gesture Recognition
             const fingertips = [8, 12, 16, 20];
             const fingerbases = [5, 9, 13, 17];
 
-            // Check open palm vs fist
             let fingersOpen = 0;
             for (let i = 0; i < 4; i++) {
-                if (handLandmarks[fingertips[i]].y < handLandmarks[fingerbases[i]].y) { // Y is inverted in some coords, but let's check distance
-                    // Distance from wrist (0)
+                if (handLandmarks[fingertips[i]].y < handLandmarks[fingerbases[i]].y) {
                     const tipDist = dist(handLandmarks[fingertips[i]], handLandmarks[0]);
                     const baseDist = dist(handLandmarks[fingerbases[i]], handLandmarks[0]);
                     if (tipDist > baseDist) fingersOpen++;
                 }
             }
 
-            // Adjust gesture sensitivity
             if (fingersOpen >= 3) {
                 setMode('SCATTERED');
-                STATE.gesture = 'OPEN';
+                STATE.gesture = '张开';
             } else if (fingersOpen <= 1) {
                 setMode('TREE');
-                STATE.gesture = 'FIST';
+                STATE.gesture = '握拳';
             } else {
-                STATE.gesture = 'HOLD';
+                STATE.gesture = '保持';
             }
 
             document.getElementById('gesture-display').innerText = STATE.gesture;
 
-            // Camera Interaction
-            // Use palm center (9) to rotate camera
             const palm = handLandmarks[9];
-            // Normalize x, y (-1 to 1)
             const nx = (palm.x - 0.5) * 2;
-            const ny = (palm.y - 0.5) * 2;
 
-            // Influence camera rotation speed (if in scattered mode usually, or general interaction)
-            // Here we map hand X position to camera rotation
-            // We can tween the camera rotation
-            const targetRot = nx * 2;
-
-            // Gentle push to controls
             controls.autoRotateSpeed = -nx * 10;
         }
 
@@ -545,7 +506,7 @@
         function setMode(newMode) {
             if (STATE.mode === newMode) return;
             STATE.mode = newMode;
-            document.getElementById('mode-display').innerText = STATE.mode;
+            document.getElementById('mode-display').innerText = (STATE.mode === 'TREE' ? '圣诞树' : '星空散落');
 
             if (newMode === 'TREE') {
                 gsap.to(STATE, { targetMix: 0, duration: 2, ease: "power2.inOut" });
@@ -592,9 +553,7 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            const delta = clock.getDelta();
-
-            // Animate mix Uniform
+            // Animate mix
             STATE.mix += (STATE.targetMix - STATE.mix) * 0.05;
             material.uniforms.uMix.value = STATE.mix;
             material.uniforms.uTime.value = clock.getElapsedTime();
@@ -603,7 +562,6 @@
             composer.render();
         }
 
-        // --- Start Handler ---
         document.getElementById('start-btn').addEventListener('click', () => {
             document.getElementById('loading-screen').style.opacity = '0';
             setTimeout(() => {
@@ -614,7 +572,6 @@
             animate();
         });
 
-        // Handle Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
