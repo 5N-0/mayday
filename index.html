@@ -305,6 +305,9 @@
         // ==========================================
         // SCENE SETUP
         // ==========================================
+        // Check protocol for file:// handling
+        const isFileProtocol = window.location.protocol === 'file:';
+
         const scene = new THREE.Scene();
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -312,15 +315,13 @@
 
         const renderer = new THREE.WebGLRenderer({
             antialias: true,
-            alpha: true, // Allow CSS background to show through
+            alpha: true,
             powerPreference: "high-performance"
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        // renderer.toneMapping = THREE.ReinhardToneMapping; // More predictable than ACES sometimes
         renderer.toneMappingExposure = 1.2;
         renderer.shadowMap.enabled = true;
-        // Ensure transparent clear color
         renderer.setClearColor(0x000000, 0);
         document.body.appendChild(renderer.domElement);
 
@@ -331,9 +332,8 @@
         controls.autoRotateSpeed = 0.5;
 
         // ==========================================
-        // LIGHTING (Boosted for Visibility)
+        // LIGHTING
         // ==========================================
-        // Strong Ambient Light ensures we see SOMETHING even if shaders fail
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
         scene.add(ambientLight);
 
@@ -342,7 +342,7 @@
         scene.add(dirLight);
 
         const goldLight = new THREE.PointLight(0xD4AF37, 3, 50);
-        goldLight.position.set(-10, 5, 20); // Front lights
+        goldLight.position.set(-10, 5, 20);
         scene.add(goldLight);
 
         // ==========================================
@@ -361,20 +361,44 @@
         // ==========================================
         // HELPERS
         // ==========================================
-        // Robust Texture Loader with Timeout and Fallback
-        function loadTextureWithFallback(url) {
-            return new Promise((resolve) => {
-                const loader = new THREE.TextureLoader();
 
-                // Timeout logic
+        if (isFileProtocol) {
+            const warning = document.createElement('div');
+            warning.style.position = 'absolute';
+            warning.style.bottom = '10px';
+            warning.style.left = '50%';
+            warning.style.transform = 'translateX(-50%)';
+            warning.style.color = '#F2D272';
+            warning.style.background = 'rgba(0,20,10,0.9)';
+            warning.style.padding = '8px 16px';
+            warning.style.borderRadius = '20px';
+            warning.style.fontSize = '13px';
+            warning.style.zIndex = '9999';
+            warning.style.pointerEvents = 'none';
+            warning.style.border = '1px solid #F2D272';
+            warning.innerHTML = "⚠️ <b>本地模式运行中</b>：默认图片被浏览器安全策略(CORS)拦截，已自动切换为生成纹理。<br>请点击左上角上传本地图片以获得最佳体验。";
+            document.body.appendChild(warning);
+        }
+
+        function loadTextureWithFallback(url, index = 0) {
+            return new Promise((resolve) => {
+                // If file protocol, SKIP loading and GENERATE texture
+                if (isFileProtocol) {
+                    resolve(createGeneratedTexture(index));
+                    return;
+                }
+
+                const loader = new THREE.TextureLoader();
                 let hasResolved = false;
+
+                // Timeout
                 const timer = setTimeout(() => {
                     if (!hasResolved) {
                         console.warn("Texture timeout:", url);
                         hasResolved = true;
-                        resolve(createFallbackTexture());
+                        resolve(createGeneratedTexture(index));
                     }
-                }, 2000); // 2s timeout
+                }, 1500);
 
                 loader.load(
                     url,
@@ -391,21 +415,45 @@
                         clearTimeout(timer);
                         console.warn("Texture load failed:", url);
                         hasResolved = true;
-                        resolve(createFallbackTexture());
+                        resolve(createGeneratedTexture(index));
                     }
                 );
             });
         }
 
-        function createFallbackTexture() {
-            // Return a canvas texture with random color
+        function createGeneratedTexture(index) {
             const canvas = document.createElement('canvas');
-            canvas.width = 64; canvas.height = 64;
+            canvas.width = 256; canvas.height = 256;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = `hsl(${Math.random() * 360}, 50%, 50%)`;
-            ctx.fillRect(0, 0, 64, 64);
-            ctx.fillStyle = 'white';
-            ctx.fillText('Img', 10, 35);
+
+            // Golden gradient
+            const grd = ctx.createLinearGradient(0, 0, 256, 256);
+            const hues = [45, 10, 140, 200, 280]; // Gold, Red, Green, Blue, Purple
+            const hue = hues[index % hues.length];
+
+            grd.addColorStop(0, `hsl(${hue}, 80%, 20%)`);
+            grd.addColorStop(1, `hsl(${hue}, 80%, 40%)`);
+
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Border
+            ctx.strokeStyle = '#D4AF37';
+            ctx.lineWidth = 15;
+            ctx.strokeRect(0, 0, 256, 256);
+
+            // Text
+            ctx.fillStyle = '#D4AF37';
+            ctx.font = 'bold 40px "Times New Roman"';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = "black";
+            ctx.shadowBlur = 10;
+            ctx.fillText('MAYDAY', 128, 110);
+            ctx.font = '24px serif';
+            ctx.fillStyle = '#fff';
+            ctx.fillText('Photo ' + (index + 1), 128, 160);
+
             const tex = new THREE.CanvasTexture(canvas);
             tex.colorSpace = THREE.SRGBColorSpace;
             return tex;
@@ -419,12 +467,10 @@
         let shapesUniforms;
 
         async function initParticles(textures) {
-            if (textures.length === 0) textures = [createFallbackTexture()];
+            if (textures.length === 0) textures = [createGeneratedTexture(0)];
 
-            // --- System 1: Shapes (InstancedMesh) ---
-            // Use Simple geometry if StandardMaterial is too heavy or buggy on some devices,
-            // but try Standard first for golden look.
-            const geomShapes = new THREE.SphereGeometry(0.3, 12, 12); // Low poly
+            // --- System 1: Shapes ---
+            const geomShapes = new THREE.SphereGeometry(0.3, 12, 12);
             const materialShapes = new THREE.MeshStandardMaterial({
                 color: 0xffffff,
                 roughness: 0.3,
@@ -447,7 +493,6 @@
             varying vec3 vColor;
         ` + shader.vertexShader;
 
-                // Custom position logic
                 shader.vertexShader = shader.vertexShader.replace(
                     '#include <begin_vertex>',
                     `
@@ -491,7 +536,6 @@
             const offsets1 = new Float32Array(countShapes * 1);
 
             const dummy = new THREE.Object3D();
-            const colorC = new THREE.Color();
 
             for (let i = 0; i < countShapes; i++) {
                 dummy.position.set(0, 0, 0);
@@ -532,7 +576,7 @@
             scene.add(shapesMesh);
 
 
-            // --- System 2: Photos (Floating Cards) ---
+            // --- System 2: Photos ---
             const photoGroup = new THREE.Group();
             photoGroup.userData.particles = [];
 
@@ -541,18 +585,16 @@
 
             for (let i = 0; i < photoCount; i++) {
                 const tex = textures[i % textures.length];
-                // Use BasicMaterial to avoid lighting issues on photos - we want them visible!
-                // Or MeshLambert with emissive.
                 const mat = new THREE.MeshBasicMaterial({
                     map: tex,
                     side: THREE.DoubleSide,
                     transparent: true,
-                    opacity: 0.9
+                    opacity: 0.95
                 });
 
                 const mesh = new THREE.Mesh(geomPhoto, mat);
 
-                // Spiral placement mixed with random
+                // Spiral
                 const angle = i * 0.8;
                 const h = (Math.random()) * 10 - 5;
                 const r = (1 - (h + 5) / 10) * 5.0;
@@ -571,14 +613,6 @@
                 mesh.lookAt(0, h, 0);
 
                 photoGroup.add(mesh);
-
-                // Add a gold border frame (child mesh)
-                const frameGeom = new THREE.RingGeometry(0.8, 0.85, 4);
-                const frameMat = new THREE.MeshBasicMaterial({ color: 0xD4AF37 });
-                const frame = new THREE.Mesh(frameGeom, frameMat);
-                frame.position.z = 0.01;
-                frame.rotation.z = Math.PI / 4;
-                // mesh.add(frame); // Optional style
             }
 
             scene.add(photoGroup);
@@ -603,9 +637,7 @@
                     let target = new THREE.Vector3();
 
                     if (STATE.mode === 'FOCUS' && STATE.focusIndex === data.id) {
-                        // Focus Mode
-                        const focusPos = new THREE.Vector3(0, 0, 5).applyMatrix4(camera.matrixWorld);
-                        // Put it slightly in front of camera
+                        // Focus
                         const direction = new THREE.Vector3();
                         camera.getWorldDirection(direction);
                         target.copy(camera.position).add(direction.multiplyScalar(4));
@@ -615,7 +647,7 @@
                         mesh.scale.setLerp(new THREE.Vector3(scale, scale, scale), 0.1);
 
                     } else {
-                        // Normal Mode
+                        // Normal
                         const p1 = data.posTree;
                         const p2 = data.posScat;
 
@@ -670,7 +702,7 @@
         }
 
         function findFocusPhoto(landmarks) {
-            const vals = landmarks[8]; // Index tip
+            const vals = landmarks[8];
             const x = (vals.x * 2 - 1) * -1;
             const y = (vals.y * 2 - 1) * -1;
 
@@ -702,10 +734,9 @@
                 else if (openCount >= 4) handleGesture('OPEN', lm);
                 else if (openCount === 0) handleGesture('FIST', lm);
 
-                // Camera move
                 if (STATE.mode === 'SCATTERED' && STATE.hand.gesture === 'OPEN') {
                     const palm = lm[9];
-                    const nx = (palm.x - 0.5) * -1; // Mirror interaction
+                    const nx = (palm.x - 0.5) * -1;
                     const ny = (palm.y - 0.5) * 1;
                     gsap.to(camera.position, { x: nx * 15, y: ny * 5 + 2, duration: 1 });
                     camera.lookAt(0, 0, 0);
@@ -725,19 +756,25 @@
         document.getElementById('file-input').addEventListener('change', async (e) => {
             if (e.target.files && e.target.files.length > 0) {
                 const newUrls = Array.from(e.target.files).map(f => URL.createObjectURL(f));
-                // Simple reload of particles with new textures
-                const newTextures = await Promise.all(newUrls.map(url => loadTextureWithFallback(url)));
+                // Force load files directly (Blob URL usually works even on file://)
+                // Check if we need to wrap fallback again for blob urls (should be fine)
+                const newTextures = await Promise.all(newUrls.map(url => {
+                    return new Promise(resolve => {
+                        new THREE.TextureLoader().load(url, tex => {
+                            tex.colorSpace = THREE.SRGBColorSpace;
+                            resolve(tex);
+                        });
+                    });
+                }));
 
                 if (photosMesh) { scene.remove(photosMesh); photosMesh = null; }
-                // Re-create Photo mesh only
                 const photoGroup = new THREE.Group();
                 const geomPhoto = new THREE.PlaneGeometry(1.5, 1.5);
 
                 for (let i = 0; i < 40; i++) {
                     const tex = newTextures[i % newTextures.length];
-                    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+                    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
                     const mesh = new THREE.Mesh(geomPhoto, mat);
-                    // ... copy logic from init ...
                     const angle = i * 0.8;
                     const h = (Math.random()) * 10 - 5;
                     const r = (1 - (h + 5) / 10) * 5.0;
@@ -763,8 +800,8 @@
 
         // Kickoff
         (async () => {
-            // Parallel load
-            const textures = await Promise.all(CONFIG.assets.map(url => loadTextureWithFallback(url)));
+            // Parallel load with fallback
+            const textures = await Promise.all(CONFIG.assets.map((url, i) => loadTextureWithFallback(url, i)));
             await initParticles(textures);
 
             document.getElementById('enter-btn').style.display = 'block';
