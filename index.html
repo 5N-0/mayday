@@ -4,17 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>五月天圣诞快乐 WebGL</title>
+    <title>Mayday Christmas 3D - Pro</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=Cinzel:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cinzel:wght@400;700&display=swap');
 
         :root {
-            --color-bg: #05140a;
-            /* 更深沉的墨绿 */
-            --color-gold: #F2D272;
-            /* 柔和金 */
-            --color-red: #D63345;
-            --font-main: 'Noto Serif SC', 'Cinzel', serif;
+            --c-bg: #05140a;
+            --c-gold: #D4AF37;
+            --c-gold-light: #F9E5BC;
+            --c-red: #8a1c1c;
         }
 
         body,
@@ -24,22 +22,13 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: var(--color-bg);
-            background: radial-gradient(circle at center, #0f2e1b 0%, #020804 100%);
-            font-family: var(--font-main);
-            color: var(--color-gold);
+            background: radial-gradient(circle at center, #112918 0%, #000000 120%);
+            font-family: 'Cinzel', serif;
+            color: var(--c-gold);
+            user-select: none;
         }
 
-        #canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-
-        #ui-layer {
+        #canvas-ui {
             position: absolute;
             top: 0;
             left: 0;
@@ -50,134 +39,166 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: 2rem;
+            padding: 40px;
             box-sizing: border-box;
         }
 
-        header {
-            text-align: center;
-            text-shadow: 0 0 10px rgba(242, 210, 114, 0.3);
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(10, 20, 15, 0.4);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 20px;
+            pointer-events: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
         }
 
         h1 {
-            font-size: 3rem;
+            font-family: 'Playfair Display', serif;
+            font-size: 4rem;
             margin: 0;
-            letter-spacing: 0.2rem;
-            background: linear-gradient(to bottom, #fffcf5, #F2D272);
+            background: linear-gradient(135deg, #fff 0%, var(--c-gold) 60%, #b8860b 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
+            letter-spacing: -1px;
         }
 
-        .status-panel {
-            position: absolute;
-            top: 2rem;
-            right: 2rem;
-            text-align: right;
-            background: rgba(0, 10, 5, 0.7);
-            padding: 1rem;
-            border: 1px solid rgba(242, 210, 114, 0.3);
-            border-radius: 8px;
-            backdrop-filter: blur(8px);
-        }
-
-        .status-item {
-            margin: 0.5rem 0;
+        .subtitle {
             font-size: 1rem;
-        }
-
-        .status-value {
-            font-weight: bold;
-            color: #fff;
-        }
-
-        #loading-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--color-bg);
-            z-index: 20;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            pointer-events: all;
-            transition: opacity 1s ease;
-        }
-
-        .loader-btn {
-            margin-top: 2rem;
-            padding: 1rem 3rem;
-            background: rgba(242, 210, 114, 0.1);
-            border: 1px solid var(--color-gold);
-            color: var(--color-gold);
-            font-family: var(--font-main);
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 5px;
             letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .btn {
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid var(--c-gold);
+            color: var(--c-gold);
+            padding: 10px 24px;
+            font-family: 'Cinzel', serif;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
             border-radius: 4px;
         }
 
-        .loader-btn:hover {
-            background: var(--color-gold);
-            color: var(--color-bg);
-            box-shadow: 0 0 30px rgba(242, 210, 114, 0.4);
+        .btn:hover {
+            background: var(--c-gold);
+            color: #000;
+            box-shadow: 0 0 20px var(--c-gold);
         }
 
-        /* Hand Video Preview */
-        #video-container {
+        #file-input {
+            display: none;
+        }
+
+        /* Status & Instructions */
+        .status-bar {
             position: absolute;
-            bottom: 2rem;
-            left: 2rem;
-            width: 200px;
-            height: 150px;
-            border: 1px solid rgba(242, 210, 114, 0.5);
-            border-radius: 10px;
-            overflow: hidden;
-            opacity: 0.7;
-            z-index: 2;
-            /* Atop canvas */
-            transform-origin: bottom left;
-            transition: transform 0.3s ease;
+            top: 40px;
+            right: 40px;
+            text-align: right;
         }
 
-        #video-container:hover {
+        .state-indicator {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: var(--c-gold-light);
+        }
+
+        .gesture-icon {
+            font-size: 2rem;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.6);
+            max-width: 250px;
+        }
+
+        .key-action {
+            color: #fff;
+            font-weight: bold;
+            display: inline-block;
+            width: 80px;
+        }
+
+        /* Video Preview */
+        .cam-preview {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 160px;
+            height: 120px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            opacity: 0.5;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .cam-preview:hover {
             opacity: 1;
             transform: scale(1.1);
         }
 
-        #input-video {
+        video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
-            /* Mirror */
         }
 
-        /* Instructions */
-        .instructions {
-            position: absolute;
-            bottom: 2rem;
-            right: 2rem;
-            text-align: right;
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.9rem;
-            line-height: 1.6;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 1rem;
-            border-radius: 8px;
+        /* Loading */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--c-bg);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.8s;
         }
 
-        .key {
-            color: var(--color-gold);
-            font-weight: bold;
-            margin-right: 0.5rem;
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(212, 175, 55, 0.3);
+            border-top-color: var(--c-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
     </style>
-
-    <!-- Import Maps -->
+    <!-- Dependencies -->
     <script type="importmap">
         {
             "imports": {
@@ -186,49 +207,51 @@
             }
         }
     </script>
-
-    <!-- MediaPipe Hands -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
-    <!-- GSAP for animations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 </head>
 
 <body>
 
-    <div id="loading-screen">
-        <h1>圣诞快乐</h1>
-        <p>五月天沉浸式 3D 体验</p>
-        <button id="start-btn" class="loader-btn">进入体验</button>
+    <div id="loader">
+        <div class="spinner"></div>
+        <div style="font-family: 'Cinzel', serif; color: var(--c-gold);">LOADING CHRISTMAS...</div>
+        <div style="font-size: 0.8rem; color: #666; margin-top: 10px;">Please allow camera access</div>
+        <button id="enter-btn" class="btn" style="margin-top: 20px; display: none;">开启体验</button>
     </div>
 
-    <div id="ui-layer">
-        <header>
-            <h1>Mayday Christmas</h1>
-        </header>
-
-        <div class="status-panel">
-            <div class="status-item">模式: <span id="mode-display" class="status-value">圣诞树</span></div>
-            <div class="status-item">手势识别: <span id="hand-display" class="status-value">未检测</span></div>
-            <div class="status-item">当前动作: <span id="gesture-display" class="status-value">-</span></div>
+    <div id="canvas-ui">
+        <div class="header">
+            <h1>Mayday Xmas</h1>
+            <div class="subtitle">Interactive 3D Experience</div>
         </div>
 
-        <div class="instructions">
-            <p><span class="key">握拳</span> 聚合圣诞树</p>
-            <p><span class="key">张开手掌</span> 散开漫游</p>
-            <p><span class="key">移动手掌</span> 旋转视角</p>
+        <div class="controls glass-panel">
+            <button class="btn" onclick="document.getElementById('file-input').click()">+ 上传照片</button>
+            <input type="file" id="file-input" multiple accept="image/*">
+            <div style="font-size: 0.8rem; color: #aaa;">支持本地图片替换云朵</div>
         </div>
-    </div>
 
-    <div id="canvas-container"></div>
+        <div class="status-bar glass-panel">
+            <div class="state-indicator">
+                状态: <span id="mode-text" style="color: #fff; font-weight: bold;">圣诞树</span>
+            </div>
+            <div class="instructions">
+                <div><span class="key-action">✊ 握拳</span> 聚合圣诞树</div>
+                <div><span class="key-action">🖐 张开</span> 散开/漫游</div>
+                <div><span class="key-action">👌 捏合</span> 抓取照片(Focus)</div>
+                <div><span class="key-action">👋 移动</span> 旋转视角</div>
+            </div>
+        </div>
 
-    <div id="video-container">
-        <video id="input-video"></video>
+        <div class="cam-preview glass-panel">
+            <video id="input-video" playsinline></video>
+        </div>
     </div>
 
     <script type="module">
@@ -238,11 +261,19 @@
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-        // --- Configuration ---
+        // ==========================================
+        // CONFIG & STATE
+        // ==========================================
         const CONFIG = {
-            count: 2000,
-            colors: [0x2A5F3A, 0xF2D272, 0xD63345, 0xFFFFFF],
-            photos: [
+            particleCount: 1500,
+            photoCountFromAssets: 5,
+            colors: [
+                new THREE.Color('#D4AF37'), // Gold
+                new THREE.Color('#8a1c1c'), // Red
+                new THREE.Color('#2A5F3A'), // Matte Green
+                new THREE.Color('#ffffff')  // Silver/White
+            ],
+            assets: [
                 'picture/bule.png',
                 'picture/green.png',
                 'picture/orange.png',
@@ -251,327 +282,575 @@
             ]
         };
 
-        // --- State ---
         const STATE = {
-            mode: 'TREE', // TREE, SCATTERED
-            gesture: 'NONE',
-            targetMix: 0,
-            mix: 0,
-            mouse: new THREE.Vector2(),
-            handPos: new THREE.Vector2()
+            mode: 'TREE', // TREE, SCATTERED, FOCUS
+            mixRatio: 0,  // 0 -> Tree, 1 -> Scattered
+            focusIndex: -1, // Which photo ID is focused
+            hand: { x: 0, y: 0, detected: false, gesture: 'NONE' },
+            userPhotos: []
         };
 
-        // --- Three.js Setup ---
-        const container = document.getElementById('canvas-container');
+        // ==========================================
+        // SCENE SETUP
+        // ==========================================
         const scene = new THREE.Scene();
+        // Environment Fog
+        scene.fog = new THREE.FogExp2(0x05140a, 0.015);
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 0, 20);
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 2, 25);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false });
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true, // IMPORTANT for sharpness
+            alpha: true,
+            powerPreference: "high-performance",
+            stencil: false,
+            depth: true
+        });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        // Use Reinhard and lower exposure to fix blowout
-        renderer.toneMapping = THREE.ReinhardToneMapping;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.0;
-        container.appendChild(renderer.domElement);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
-        controls.enableZoom = true;
         controls.autoRotate = true;
         controls.autoRotateSpeed = 0.5;
 
-        // --- Post Processing ---
-        const renderScene = new RenderPass(scene, camera);
+        // ==========================================
+        // LIGHTING (Cinematic)
+        // ==========================================
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
 
-        // Bloom settings adjustments
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-        bloomPass.threshold = 0.4;  // Higher threshold = fewer things glow
-        bloomPass.strength = 0.5;   // Lower strength = less glare
-        bloomPass.radius = 0.3;     // Smaller radius = sharper glow
+        const dirLight = new THREE.DirectionalLight(0xfffaed, 2);
+        dirLight.position.set(10, 20, 10);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
 
+        const goldLight = new THREE.PointLight(0xD4AF37, 2, 50);
+        goldLight.position.set(-10, 5, -10);
+        scene.add(goldLight);
+
+        const redLight = new THREE.PointLight(0x8a1c1c, 1, 50);
+        redLight.position.set(10, -5, 10);
+        scene.add(redLight);
+
+        // ==========================================
+        // POST PROCESSING
+        // ==========================================
+        // Selective Bloom mostly, but general bloom is fine if radius is small
         const composer = new EffectComposer(renderer);
-        composer.addPass(renderScene);
+        const renderPass = new RenderPass(scene, camera);
+        composer.addPass(renderPass);
+
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloomPass.threshold = 0.7; // Only very bright things allow bloom
+        bloomPass.strength = 0.6;
+        bloomPass.radius = 0.3; // Small radius keeps things sharp
         composer.addPass(bloomPass);
 
-        // --- Assets Loading ---
-        const textureLoader = new THREE.TextureLoader();
-        const loadedTextures = CONFIG.photos.map(url => textureLoader.load(url));
+        // ==========================================
+        // HELPERS
+        // ==========================================
+        // Create Texture Atlas from Images
+        async function createTextures(imageUrls) {
+            const loadedImages = await Promise.all(imageUrls.map(src => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => resolve(img);
+                    img.onerror = () => {
+                        // Fallback placeholder
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 256; canvas.height = 256;
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#333'; ctx.fillRect(0, 0, 256, 256);
+                        ctx.fillStyle = '#D4AF37'; ctx.font = '30px serif';
+                        ctx.fillText('NO IMAGE', 20, 128);
+                        resolve(canvas);
+                    };
+                    img.src = src;
+                })
+            }));
 
-        // --- Particles ---
-        const baseGeometry = new THREE.PlaneGeometry(0.5, 0.5);
-        const instancedGeometry = new THREE.InstancedBufferGeometry();
-        instancedGeometry.index = baseGeometry.index;
-        instancedGeometry.attributes.position = baseGeometry.attributes.position;
-        instancedGeometry.attributes.uv = baseGeometry.attributes.uv;
-
-        // Attributes Data
-        const particleCount = CONFIG.count;
-        const posTree = [];
-        const posScattered = [];
-        const colors = [];
-        const offsets = [];
-        const types = [];
-
-        const colorPalette = new THREE.Color();
-
-        for (let i = 0; i < particleCount; i++) {
-            // Tree: Spiral Cone
-            const angle = i * 0.15;
-            const height = (i / particleCount) * 12 - 6;
-            const radius = (1 - (height + 6) / 12) * 5;
-            const r = radius * Math.random();
-            const x1 = Math.cos(angle) * r;
-            const y1 = height;
-            const z1 = Math.sin(angle) * r;
-            posTree.push(x1, y1, z1);
-
-            // Scattered: Box
-            const range = 25;
-            const x2 = (Math.random() - 0.5) * range;
-            const y2 = (Math.random() - 0.5) * range;
-            const z2 = (Math.random() - 0.5) * range;
-            posScattered.push(x2, y2, z2);
-
-            // Colors
-            colorPalette.setHex(CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)]);
-            colors.push(colorPalette.r, colorPalette.g, colorPalette.b);
-
-            offsets.push(Math.random() * 100);
-            types.push(Math.random() > 0.95 ? 1 : 0);
+            return loadedImages.map(img => {
+                const tex = new THREE.Texture(img);
+                tex.needsUpdate = true;
+                tex.colorSpace = THREE.SRGBColorSpace;
+                return tex;
+            });
         }
 
-        instancedGeometry.setAttribute('aPosTree', new THREE.InstancedBufferAttribute(new Float32Array(posTree), 3));
-        instancedGeometry.setAttribute('aPosScattered', new THREE.InstancedBufferAttribute(new Float32Array(posScattered), 3));
-        instancedGeometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(new Float32Array(colors), 3));
-        instancedGeometry.setAttribute('aOffset', new THREE.InstancedBufferAttribute(new Float32Array(offsets), 1));
-        instancedGeometry.setAttribute('aType', new THREE.InstancedBufferAttribute(new Float32Array(types), 1));
+        // ==========================================
+        // PARTICLE SYSTEM (InstancedMesh + Shader Injection)
+        // ==========================================
+        // We will use 2 systems:
+        // 1. Shapes (Ornaments): Spheres, Cubes. PBR Material.
+        // 2. Photos: Planes. Basic Material (or PBR).
 
-        // Shader Material
-        const material = new THREE.ShaderMaterial({
-            uniforms: {
-                uTime: { value: 0 },
-                uMix: { value: 0 },
-                uTex0: { value: loadedTextures[0] },
-                uTex1: { value: loadedTextures[1] },
-                uTex2: { value: loadedTextures[2] },
-                uTex3: { value: loadedTextures[3] },
-                uTex4: { value: loadedTextures[4] }
-            },
-            vertexShader: `
-                uniform float uTime;
-                uniform float uMix;
-                
-                attribute vec3 aPosTree;
-                attribute vec3 aPosScattered;
-                attribute vec3 aColor;
-                attribute float aOffset;
-                attribute float aType;
+        let shapesMesh, photosMesh;
+        let shapesUniforms, photosUniforms;
 
-                varying vec3 vColor;
-                varying vec2 vUv;
-                varying float vType;
+        async function initParticles(textures) {
+            // --- System 1: Ornaments (Spheres & Cubes) ---
+            // We mix geometries by using one geometry and scaling, or just use Spheres for all "ornaments" for simplicity but high quality.
+            // Let's use a SphereGeometry.
+            const geomShapes = new THREE.SphereGeometry(0.5, 16, 16);
+            const materialShapes = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.2, // Shiny
+                metalness: 0.8, // Metallic
+            });
 
-                vec3 snoiseVec3( vec3 x ){
-                  float s  = sin(x.x);
-                  float c  = cos(x.y);
-                  return vec3(s, c, s*c);
-                }
+            // Custom Shader Injection for Morphing
+            materialShapes.onBeforeCompile = (shader) => {
+                shader.uniforms.uTime = { value: 0 };
+                shader.uniforms.uMix = { value: 0 };
+                shapesUniforms = shader.uniforms;
 
-                void main() {
-                    vUv = uv;
-                    vColor = aColor;
-                    vType = aType;
+                shader.vertexShader = `
+            uniform float uTime;
+            uniform float uMix;
+            attribute vec3 aPosTree;
+            attribute vec3 aPosScattered;
+            attribute vec3 aColor;
+            attribute float aScale;
+            attribute float aOffset;
+            varying vec3 vColor;
+        ` + shader.vertexShader;
 
-                    vec3 pos = mix(aPosTree, aPosScattered, uMix);
+                shader.vertexShader = shader.vertexShader.replace(
+                    '#include <begin_vertex>',
+                    `
+            vec3 p1 = aPosTree;
+            vec3 p2 = aPosScattered;
+            
+            // Noise movement
+            float t = uTime * 0.5 + aOffset;
+            vec3 noise = vec3(sin(t), cos(t * 0.7), sin(t * 0.3)) * 0.2;
+            
+            vec3 finalPos = mix(p1, p2, uMix);
+            if(uMix > 0.5) finalPos += noise;
 
-                    // Float animation
-                    float noiseFreq = 0.3;
-                    float noiseAmp = 0.15;
-                    vec3 noisePos = vec3(pos.x * noiseFreq + uTime * 0.5, pos.y * noiseFreq + uTime * 0.5, pos.z * noiseFreq);
-                    pos += snoiseVec3(noisePos + aOffset) * noiseAmp;
+            vec3 transformed = vec3(position) * aScale;
+            
+            // Apply position
+            transformed += finalPos;
+            
+            vColor = aColor;
+            `
+                );
 
-                    // Billboard
-                    vec4 instanceCenter = modelViewMatrix * vec4(pos, 1.0);
-                    float scale = (aType > 0.5) ? 2.5 : 0.8; 
-                    instanceCenter.xyz += position * scale;
-                    
-                    gl_Position = projectionMatrix * instanceCenter;
-                }
-            `,
-            fragmentShader: `
-                uniform sampler2D uTex0;
-                uniform sampler2D uTex1;
-                uniform sampler2D uTex2;
-                uniform sampler2D uTex3;
-                uniform sampler2D uTex4;
-                
-                varying vec3 vColor;
-                varying vec2 vUv;
-                varying float vType;
+                shader.fragmentShader = `
+            varying vec3 vColor;
+        ` + shader.fragmentShader;
 
-                void main() {
-                    vec4 finalColor;
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    '#include <color_fragment>',
+                    `
+            #include <color_fragment>
+            diffuseColor.rgb *= vColor;
+            `
+                );
+            };
 
-                    if (vType > 0.5) {
-                        float idx = floor(vColor.r * 5.0);
-                        vec4 texCol;
-                        if(idx < 1.0) texCol = texture2D(uTex0, vUv);
-                        else if(idx < 2.0) texCol = texture2D(uTex1, vUv);
-                        else if(idx < 3.0) texCol = texture2D(uTex2, vUv);
-                        else if(idx < 4.0) texCol = texture2D(uTex3, vUv);
-                        else texCol = texture2D(uTex4, vUv);
-                        
-                        finalColor = texCol;
-                        if (finalColor.a < 0.2) discard;
+            // Data for Shapes
+            const countShapes = 1200;
+            const mesh1 = new THREE.InstancedMesh(geomShapes, materialShapes, countShapes);
+            mesh1.instanceMatrix.setUsage(THREE.DynamicDrawUsage); // Although we move via shader, matrix is static identity
+
+            // Fill Attributes
+            const posTree1 = new Float32Array(countShapes * 3);
+            const posScat1 = new Float32Array(countShapes * 3);
+            const colors1 = new Float32Array(countShapes * 3);
+            const scales1 = new Float32Array(countShapes * 1);
+            const offsets1 = new Float32Array(countShapes * 1);
+
+            const dummy = new THREE.Object3D();
+            for (let i = 0; i < countShapes; i++) {
+                // Identity Matrix
+                dummy.position.set(0, 0, 0);
+                dummy.updateMatrix();
+                mesh1.setMatrixAt(i, dummy.matrix);
+
+                // Tree: Cone Spiral
+                const angle = i * 0.2;
+                const h = (i / countShapes) * 10 - 5;
+                const r = (1 - (h + 5) / 10) * 4;
+                const randR = r + (Math.random() - 0.5);
+                posTree1[i * 3] = Math.cos(angle) * randR;
+                posTree1[i * 3 + 1] = h;
+                posTree1[i * 3 + 2] = Math.sin(angle) * randR;
+
+                // Scattered: Cube volume
+                posScat1[i * 3] = (Math.random() - 0.5) * 20;
+                posScat1[i * 3 + 1] = (Math.random() - 0.5) * 20;
+                posScat1[i * 3 + 2] = (Math.random() - 0.5) * 20;
+
+                // Color
+                const c = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
+                colors1[i * 3] = c.r;
+                colors1[i * 3 + 1] = c.g;
+                colors1[i * 3 + 2] = c.b;
+
+                // Scale
+                scales1[i] = Math.random() * 0.3 + 0.1;
+
+                // Offset
+                offsets1[i] = Math.random() * 100;
+            }
+
+            mesh1.geometry.setAttribute('aPosTree', new THREE.InstancedBufferAttribute(posTree1, 3));
+            mesh1.geometry.setAttribute('aPosScattered', new THREE.InstancedBufferAttribute(posScat1, 3));
+            mesh1.geometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(colors1, 3));
+            mesh1.geometry.setAttribute('aScale', new THREE.InstancedBufferAttribute(scales1, 1));
+            mesh1.geometry.setAttribute('aOffset', new THREE.InstancedBufferAttribute(offsets1, 1));
+            mesh1.receiveShadow = true;
+            mesh1.castShadow = true;
+
+            shapesMesh = mesh1;
+            scene.add(shapesMesh);
+
+
+            // --- System 2: Photos (Floating Cards) ---
+            // We cannot easily use Texture Atlas in shader without uv mods, 
+            // but for <10 photos, let's just make 10 Mesh objects?
+            // No, user wants LOTS of photos potentially.
+            // Okay, for "Pro" look, let's stick to creating N planes.
+            // However, if we want them to partake in the "Explosion", InstancedMesh is best.
+            // Compromise: We create one InstancedMesh per Texture? No, too many draw calls if unique textures.
+            // Solution: Just create a Group of regular Meshes. 50 photos is fine for GPU.
+            // Let's create 50 Photo Meshes reusing the user's textures cyclically.
+
+            const photoGroup = new THREE.Group();
+            const photoCount = 50;
+
+            // We need arrays to store target positions for manual JS animation (easier for Focus logic)
+            photoGroup.userData.particles = [];
+
+            const geomPhoto = new THREE.PlaneGeometry(1.5, 1.5); // Card aspect ratio could be dynamic
+
+            for (let i = 0; i < photoCount; i++) {
+                // Pick texture
+                const tex = textures[i % textures.length];
+                const mat = new THREE.MeshBasicMaterial({
+                    map: tex,
+                    side: THREE.DoubleSide,
+                    transparent: true
+                });
+
+                const mesh = new THREE.Mesh(geomPhoto, mat);
+
+                // Tree Pos
+                const angle = i * 0.5;
+                const h = (Math.random()) * 10 - 5;
+                const r = (1 - (h + 5) / 10) * 4.5; // Slightly outside
+                const pTree = new THREE.Vector3(Math.cos(angle) * r, h, Math.sin(angle) * r);
+
+                // Scatter Pos
+                const pScat = new THREE.Vector3((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15);
+
+                // Store data
+                mesh.userData = {
+                    id: i,
+                    posTree: pTree,
+                    posScat: pScat,
+                    currentPos: pTree.clone(),
+                    rotationSpeed: new THREE.Vector3(Math.random() * 0.01, Math.random() * 0.01, 0)
+                };
+
+                mesh.position.copy(pTree);
+                mesh.lookAt(0, h, 0); // Look somewhat at center
+
+                photoGroup.add(mesh);
+                photoGroup.userData.particles.push(mesh);
+            }
+
+            scene.add(photoGroup);
+            photosMesh = photoGroup; // Reference for animation
+        }
+
+
+        // ==========================================
+        // ANIMATION & INTERACTION
+        // ==========================================
+        // Raycaster for Focus
+        const raycaster = new THREE.Raycaster();
+
+        function animateParticles(time, delta) {
+            // 1. Update Shapes shader uniforms
+            if (shapesUniforms) {
+                shapesUniforms.uTime.value = time;
+                shapesUniforms.uMix.value = STATE.mixRatio;
+            }
+
+            // 2. Update Photos (CPU Animation because of Focus logic)
+            if (photosMesh) {
+                photosMesh.children.forEach(mesh => {
+                    const data = mesh.userData;
+
+                    // Target Position Calculation
+                    let target = new THREE.Vector3();
+
+                    if (STATE.mode === 'FOCUS' && STATE.focusIndex === data.id) {
+                        // Determine point in front of camera
+                        const focusPos = new THREE.Vector3(0, 0, -5).applyMatrix4(camera.matrixWorld);
+                        target.copy(focusPos);
+
+                        // Look at camera
+                        mesh.lookAt(camera.position);
+                        const scale = 2.0;
+                        mesh.scale.setLerp(new THREE.Vector3(scale, scale, scale), 0.1);
+
                     } else {
-                        // Soft circle
-                        vec2 center = vUv - 0.5;
-                        float dist = length(center);
-                        
-                        // Sharper, smaller glowing point to reduce full-screen washout
-                        float alpha = 1.0 - smoothstep(0.05, 0.5, dist);
-                        
-                        // Solid core
-                        float core = 1.0 - smoothstep(0.0, 0.1, dist);
-                        
-                        vec3 particleColor = mix(vColor, vec3(1.0), core * 0.7);
-                        
-                        finalColor = vec4(particleColor, alpha * 0.9);
+                        // Normal interpolation between Tree and Scatter
+                        const p1 = data.posTree;
+                        const p2 = data.posScat;
+
+                        // Mix
+                        target.lerpVectors(p1, p2, STATE.mixRatio);
+
+                        // Add Float noise
+                        if (STATE.mixRatio > 0.5) {
+                            target.x += Math.sin(time + data.id) * 0.01;
+                            target.y += Math.cos(time * 0.8 + data.id) * 0.01;
+                            mesh.rotation.x += data.rotationSpeed.x;
+                            mesh.rotation.y += data.rotationSpeed.y;
+                        } else {
+                            // Reset rotation for tree (approx)
+                            // mesh.lookAt(0, target.y, 0); // Optional: keep them facing out
+                        }
+
+                        mesh.scale.setLerp(new THREE.Vector3(1, 1, 1), 0.1);
                     }
 
-                    gl_FragColor = finalColor;
+                    // Move current pos towards target
+                    mesh.position.lerp(target, 0.05);
+                });
+            }
+        }
+
+
+        // ==========================================
+        // GESTURE LOGIC
+        // ==========================================
+        function handleGesture(type, landmarks) {
+            if (type === STATE.hand.gesture) return; // Debounce slightly
+            STATE.hand.gesture = type;
+            document.getElementById('mode-text').innerText = type + " (Detected)";
+
+            if (type === 'FIST') {
+                toMode('TREE');
+            } else if (type === 'OPEN') {
+                toMode('SCATTERED');
+            } else if (type === 'PINCH') {
+                // If in scattered mode, find closest photo to "grab"
+                if (STATE.mode === 'SCATTERED' || STATE.mode === 'FOCUS') {
+                    findFocusPhoto(landmarks);
                 }
-            `,
-            transparent: true,
-            depthWrite: false,
-            // SWITCHED BLENDING to NormalBlending to prevent light accumulation blowout
-            blending: THREE.NormalBlending,
-            side: THREE.DoubleSide
-        });
+            }
+        }
 
-        const mesh = new THREE.InstancedMesh(instancedGeometry, material, particleCount);
-        scene.add(mesh);
+        function toMode(mode) {
+            if (STATE.mode === mode && mode !== 'FOCUS') return;
 
-        // --- Gesture Logic ---
-        function updateState(handLandmarks) {
-            if (!handLandmarks) {
-                document.getElementById('hand-display').innerText = "未检测";
-                document.getElementById('hand-display').style.color = "#D63345";
-                STATE.gesture = 'NONE';
+            STATE.mode = mode;
+
+            // UI Update
+            const t = document.getElementById('mode-text');
+            if (mode === 'TREE') {
+                t.innerText = "圣诞树 (Tree)";
+                gsap.to(STATE, { mixRatio: 0, duration: 1.5, ease: "power2.inOut" });
                 controls.autoRotate = true;
-                return;
+            } else if (mode === 'SCATTERED') {
+                t.innerText = "星空漫游 (Galaxy)";
+                gsap.to(STATE, { mixRatio: 1, duration: 1.5, ease: "power2.inOut" });
+                STATE.focusIndex = -1; // Reset focus
+                controls.autoRotate = true; // Slow rotate
+            } else if (mode === 'FOCUS') {
+                t.innerText = "查看照片 (Focus)";
+                controls.autoRotate = false;
             }
+        }
 
-            document.getElementById('hand-display').innerText = "已检测";
-            document.getElementById('hand-display').style.color = "#F2D272";
-            controls.autoRotate = false;
+        function findFocusPhoto(landmarks) {
+            // Simple logic: If we pinch, focus the photo closest to screen center? 
+            // Or we use hand position mapped to screen coords to raycast.
 
-            const fingertips = [8, 12, 16, 20];
-            const fingerbases = [5, 9, 13, 17];
+            // Map hand index finger tip (8) to screen coords
+            const indexTip = landmarks[8];
+            const x = (indexTip.x * 2 - 1) * -1; // Invert X for mirror, map -1 to 1
+            const y = (indexTip.y * 2 - 1) * -1; // Invert Y, map -1 to 1
 
-            let fingersOpen = 0;
-            for (let i = 0; i < 4; i++) {
-                if (handLandmarks[fingertips[i]].y < handLandmarks[fingerbases[i]].y) {
-                    const tipDist = dist(handLandmarks[fingertips[i]], handLandmarks[0]);
-                    const baseDist = dist(handLandmarks[fingerbases[i]], handLandmarks[0]);
-                    if (tipDist > baseDist) fingersOpen++;
+            raycaster.setFromCamera({ x, y }, camera);
+
+            if (photosMesh) {
+                const intersects = raycaster.intersectObjects(photosMesh.children);
+                if (intersects.length > 0) {
+                    const hit = intersects[0].object;
+                    STATE.focusIndex = hit.userData.id;
+                    toMode('FOCUS');
+                } else {
+                    // Nothing hit, maybe just Scatter
+                    if (STATE.mode === 'FOCUS') toMode('SCATTERED');
                 }
             }
-
-            if (fingersOpen >= 3) {
-                setMode('SCATTERED');
-                STATE.gesture = '张开';
-            } else if (fingersOpen <= 1) {
-                setMode('TREE');
-                STATE.gesture = '握拳';
-            } else {
-                STATE.gesture = '保持';
-            }
-
-            document.getElementById('gesture-display').innerText = STATE.gesture;
-
-            const palm = handLandmarks[9];
-            const nx = (palm.x - 0.5) * 2;
-
-            controls.autoRotateSpeed = -nx * 10;
         }
 
-        function dist(p1, p2) {
-            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-        }
-
-        function setMode(newMode) {
-            if (STATE.mode === newMode) return;
-            STATE.mode = newMode;
-            document.getElementById('mode-display').innerText = (STATE.mode === 'TREE' ? '圣诞树' : '星空散落');
-
-            if (newMode === 'TREE') {
-                gsap.to(STATE, { targetMix: 0, duration: 2, ease: "power2.inOut" });
-            } else if (newMode === 'SCATTERED') {
-                gsap.to(STATE, { targetMix: 1, duration: 2, ease: "power2.inOut" });
-            }
-        }
-
-        // --- MediaPipe Setup ---
+        // MediaPipe Integration
         const videoElement = document.getElementById('input-video');
-
         const hands = new Hands({
             locateFile: (file) => {
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
             }
         });
-
         hands.setOptions({
             maxNumHands: 1,
             modelComplexity: 1,
-            minDetectionConfidence: 0.5,
+            minDetectionConfidence: 0.7, // High confidence to avoid jitter
             minTrackingConfidence: 0.5
         });
 
         hands.onResults((results) => {
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                updateState(results.multiHandLandmarks[0]);
+            const lm = results.multiHandLandmarks ? results.multiHandLandmarks[0] : null;
+            if (lm) {
+                STATE.hand.detected = true;
+
+                // Detect Gestures
+                const tips = [8, 12, 16, 20];
+                const bases = [5, 9, 13, 17];
+                let openCount = 0;
+                tips.forEach((t, i) => {
+                    if (dist(lm[t], lm[0]) > dist(lm[bases[i]], lm[0]) * 1.5) openCount++;
+                });
+
+                // Pinch Detection (Thumb + Index close)
+                const pinchDist = dist(lm[4], lm[8]);
+                const isPinch = pinchDist < 0.05;
+
+                // Logic
+                if (isPinch) {
+                    handleGesture('PINCH', lm);
+                } else if (openCount >= 4) {
+                    handleGesture('OPEN', lm);
+                } else if (openCount === 0) {
+                    handleGesture('FIST', lm);
+                }
+
+                // Camera Rotate if Open/Pinch
+                if (STATE.mode === 'SCATTERED') {
+                    const palm = lm[9];
+                    const nx = (palm.x - 0.5);
+                    const ny = (palm.y - 0.5);
+                    // Gentle look move
+                    gsap.to(camera.position, {
+                        x: nx * 10,
+                        y: ny * 10 + 2, // Keep some height
+                        duration: 1
+                    });
+                    camera.lookAt(0, 0, 0);
+                }
+
             } else {
-                updateState(null);
+                STATE.hand.detected = false;
+                if (STATE.mode === 'FOCUS') toMode('SCATTERED'); // Auto release focus
             }
         });
 
+        function dist(p1, p2) {
+            return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2 + (p1.z || 0 - p2.z || 0) ** 2);
+        }
+
         const cameraUtils = new Camera(videoElement, {
-            onFrame: async () => {
-                await hands.send({ image: videoElement });
-            },
-            width: 320,
-            height: 240
+            onFrame: async () => { await hands.send({ image: videoElement }); },
+            width: 320, height: 240
         });
 
-        // --- Main Loop ---
-        const clock = new THREE.Clock();
+        // ==========================================
+        // FILE UPLOAD
+        // ==========================================
+        document.getElementById('file-input').addEventListener('change', async (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                const newUrls = Array.from(e.target.files).map(f => URL.createObjectURL(f));
+                const newTextures = await createTextures(newUrls);
 
+                // Remove old photos
+                if (photosMesh) {
+                    scene.remove(photosMesh);
+                    photosMesh = null;
+                }
+
+                // Re-init particles part 2
+                // We need to keep Shape particles, just redo photos.
+                // Actually, initParticles handles both, let's just redo Photos part.
+                // For simplicity in this single file, let's just reload the page or complex logic?
+                // Let's implement partial re-init.
+
+                const photoGroup = new THREE.Group();
+                photoGroup.userData.particles = [];
+                const geomPhoto = new THREE.PlaneGeometry(1.5, 1.5);
+
+                for (let i = 0; i < 50; i++) {
+                    const tex = newTextures[i % newTextures.length];
+                    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true });
+                    const mesh = new THREE.Mesh(geomPhoto, mat);
+                    // ... copy same logic as init ...
+                    const angle = i * 0.5;
+                    const h = (Math.random()) * 10 - 5;
+                    const r = (1 - (h + 5) / 10) * 4.5;
+                    const pTree = new THREE.Vector3(Math.cos(angle) * r, h, Math.sin(angle) * r);
+                    const pScat = new THREE.Vector3((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15);
+                    mesh.userData = { id: i, posTree: pTree, posScat: pScat, rotationSpeed: new THREE.Vector3(Math.random() * 0.01, Math.random() * 0.01, 0) };
+                    mesh.position.copy(pTree);
+                    mesh.lookAt(0, h, 0);
+                    photoGroup.add(mesh);
+                }
+                scene.add(photoGroup);
+                photosMesh = photoGroup;
+            }
+        });
+
+        // ==========================================
+        // MAIN LOOP & START
+        // ==========================================
+        document.getElementById('enter-btn').addEventListener('click', () => {
+            // Hide loader
+            gsap.to('#loader', { opacity: 0, duration: 1, onComplete: () => document.getElementById('loader').style.display = 'none' });
+
+            // Start Camera
+            cameraUtils.start();
+        });
+
+        // Initialize
+        (async () => {
+            const textures = await createTextures(CONFIG.assets);
+            initParticles(textures);
+            document.getElementById('enter-btn').style.display = 'block';
+            console.log("Assets Loaded");
+        })();
+
+        const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
 
-            // Animate mix
-            STATE.mix += (STATE.targetMix - STATE.mix) * 0.05;
-            material.uniforms.uMix.value = STATE.mix;
-            material.uniforms.uTime.value = clock.getElapsedTime();
+            const time = clock.getElapsedTime();
+            const delta = clock.getDelta();
+
+            animateParticles(time, delta);
 
             controls.update();
             composer.render();
         }
+        animate();
 
-        document.getElementById('start-btn').addEventListener('click', () => {
-            document.getElementById('loading-screen').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('loading-screen').style.display = 'none';
-            }, 1000);
-
-            cameraUtils.start();
-            animate();
-        });
-
+        // Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
