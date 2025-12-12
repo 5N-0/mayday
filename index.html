@@ -51,9 +51,6 @@
             transition: all 0.3s ease;
         }
 
-        /* --- UI LAYOUT --- */
-
-        /* Top Center: Title */
         .header {
             position: absolute;
             top: 20px;
@@ -61,7 +58,6 @@
             transform: translateX(-50%);
             text-align: center;
             pointer-events: none;
-            /* Let clicks pass through */
         }
 
         h1 {
@@ -84,7 +80,6 @@
             text-transform: uppercase;
         }
 
-        /* Top Left: Controls (Upload) */
         .controls {
             position: absolute;
             top: 40px;
@@ -94,7 +89,6 @@
             gap: 10px;
         }
 
-        /* Top Right: Status */
         .status-bar {
             position: absolute;
             top: 40px;
@@ -102,7 +96,6 @@
             text-align: right;
         }
 
-        /* Bottom Left: Camera Preview */
         .cam-preview {
             position: absolute;
             bottom: 40px;
@@ -128,7 +121,6 @@
             transform: scaleX(-1);
         }
 
-        /* Components */
         .btn {
             background: rgba(212, 175, 55, 0.1);
             border: 1px solid var(--c-gold);
@@ -176,7 +168,24 @@
             width: 80px;
         }
 
-        /* Loading */
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 300px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 10px;
+            overflow-y: auto;
+            padding: 10px;
+            z-index: 9999;
+            pointer-events: none;
+            display: none;
+            /* Hidden by default, enable via code if needed */
+        }
+
         #loader {
             position: fixed;
             top: 0;
@@ -208,7 +217,7 @@
             }
         }
     </style>
-    <!-- Dependencies -->
+
     <script type="importmap">
         {
             "imports": {
@@ -223,16 +232,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
         crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <!-- Use unpkg for GSAP to be safe -->
+    <script src="https://unpkg.com/gsap@3.12.2/dist/gsap.min.js"></script>
 </head>
 
 <body>
 
+    <div id="debug-console"></div>
+
     <div id="loader">
         <div class="spinner"></div>
-        <div style="font-family: 'Cinzel', serif; color: var(--c-gold);">正在初始化...</div>
-        <div style="font-size: 0.8rem; color: #666; margin-top: 10px;">首次加载可能需要几秒钟</div>
-        <button id="enter-btn" class="btn" style="margin-top: 20px; display: none;">开启体验</button>
+        <div style="font-family: 'Cinzel', serif; color: var(--c-gold);">LOADING...</div>
+        <div style="font-size: 0.8rem; color: #666; margin-top: 10px;" id="loader-msg">Initializing Graphics...</div>
+        <button id="enter-btn" class="btn" style="margin-top: 20px; display: none;">开启体验 (ENTER)</button>
     </div>
 
     <div id="canvas-ui">
@@ -240,15 +252,11 @@
             <h1>Mayday Xmas</h1>
             <div class="subtitle">Interactive 3D Experience</div>
         </div>
-
-        <!-- Top Left Controls -->
         <div class="controls glass-panel">
             <button class="btn" onclick="document.getElementById('file-input').click()">+ 上传照片</button>
             <input type="file" id="file-input" multiple accept="image/*">
             <div style="font-size: 0.7rem; color: #aaa; margin-top:5px;">支持多张图片</div>
         </div>
-
-        <!-- Top Right Status -->
         <div class="status-bar glass-panel">
             <div class="state-indicator">
                 状态: <span id="mode-text" style="color: #fff; font-weight: bold;">圣诞树</span>
@@ -260,12 +268,24 @@
                 <div><span class="key-action">👋 移动</span> 旋转视角</div>
             </div>
         </div>
-
-        <!-- Bottom Left Camera -->
         <div class="cam-preview glass-panel">
             <video id="input-video" playsinline></video>
         </div>
     </div>
+
+    <script>
+        // Debug logger
+        const debugEl = document.getElementById('debug-console');
+        function log(msg) {
+            console.log(msg);
+            // debugEl.style.display = 'block'; // Uncomment to show debug overlay always
+            debugEl.innerHTML += `> ${msg}<br>`;
+            debugEl.scrollTop = debugEl.scrollHeight;
+        }
+        window.onerror = function (msg, url, line) {
+            log(`ERROR: ${msg} @ ${line}`);
+        };
+    </script>
 
     <script type="module">
         import * as THREE from 'three';
@@ -274,23 +294,18 @@
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
+        log("Module loaded. Starting Three.js init...");
+
         // ==========================================
-        // CONFIG & STATE
+        // STATE
         // ==========================================
         const CONFIG = {
             particleCount: 1500,
             colors: [
-                new THREE.Color('#D4AF37'), // Gold
-                new THREE.Color('#8a1c1c'), // Red
-                new THREE.Color('#2A5F3A'), // Matte Green
-                new THREE.Color('#ffffff')  // Silver/White
-            ],
-            assets: [
-                'picture/bule.png',
-                'picture/green.png',
-                'picture/orange.png',
-                'picture/pink.png',
-                'picture/yellow.png'
+                new THREE.Color('#D4AF37'),
+                new THREE.Color('#8a1c1c'),
+                new THREE.Color('#2A5F3A'),
+                new THREE.Color('#ffffff')
             ]
         };
 
@@ -299,15 +314,11 @@
             mixRatio: 0,
             focusIndex: -1,
             hand: { x: 0, y: 0, detected: false, gesture: 'NONE' },
-            userPhotos: []
         };
 
         // ==========================================
         // SCENE SETUP
         // ==========================================
-        // Check protocol for file:// handling
-        const isFileProtocol = window.location.protocol === 'file:';
-
         const scene = new THREE.Scene();
 
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -325,6 +336,8 @@
         renderer.setClearColor(0x000000, 0);
         document.body.appendChild(renderer.domElement);
 
+        log("Renderer created");
+
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
@@ -334,13 +347,11 @@
         // ==========================================
         // LIGHTING
         // ==========================================
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
         scene.add(ambientLight);
-
         const dirLight = new THREE.DirectionalLight(0xfffaed, 2.5);
         dirLight.position.set(10, 20, 10);
         scene.add(dirLight);
-
         const goldLight = new THREE.PointLight(0xD4AF37, 3, 50);
         goldLight.position.set(-10, 5, 20);
         scene.add(goldLight);
@@ -351,108 +362,28 @@
         const composer = new EffectComposer(renderer);
         const renderPass = new RenderPass(scene, camera);
         composer.addPass(renderPass);
-
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-        bloomPass.threshold = 0.6;
-        bloomPass.strength = 0.8;
-        bloomPass.radius = 0.4;
+        bloomPass.threshold = 0.6; bloomPass.strength = 0.8; bloomPass.radius = 0.4;
         composer.addPass(bloomPass);
 
         // ==========================================
-        // HELPERS
+        // GENERATED TEXTURE
         // ==========================================
-
-        if (isFileProtocol) {
-            const warning = document.createElement('div');
-            warning.style.position = 'absolute';
-            warning.style.bottom = '10px';
-            warning.style.left = '50%';
-            warning.style.transform = 'translateX(-50%)';
-            warning.style.color = '#F2D272';
-            warning.style.background = 'rgba(0,20,10,0.9)';
-            warning.style.padding = '8px 16px';
-            warning.style.borderRadius = '20px';
-            warning.style.fontSize = '13px';
-            warning.style.zIndex = '9999';
-            warning.style.pointerEvents = 'none';
-            warning.style.border = '1px solid #F2D272';
-            warning.innerHTML = "⚠️ <b>本地模式运行中</b>：默认图片被浏览器安全策略(CORS)拦截，已自动切换为生成纹理。<br>请点击左上角上传本地图片以获得最佳体验。";
-            document.body.appendChild(warning);
-        }
-
-        function loadTextureWithFallback(url, index = 0) {
-            return new Promise((resolve) => {
-                // If file protocol, SKIP loading and GENERATE texture
-                if (isFileProtocol) {
-                    resolve(createGeneratedTexture(index));
-                    return;
-                }
-
-                const loader = new THREE.TextureLoader();
-                let hasResolved = false;
-
-                // Timeout
-                const timer = setTimeout(() => {
-                    if (!hasResolved) {
-                        console.warn("Texture timeout:", url);
-                        hasResolved = true;
-                        resolve(createGeneratedTexture(index));
-                    }
-                }, 1500);
-
-                loader.load(
-                    url,
-                    (tex) => {
-                        if (hasResolved) return;
-                        clearTimeout(timer);
-                        hasResolved = true;
-                        tex.colorSpace = THREE.SRGBColorSpace;
-                        resolve(tex);
-                    },
-                    undefined,
-                    (err) => {
-                        if (hasResolved) return;
-                        clearTimeout(timer);
-                        console.warn("Texture load failed:", url);
-                        hasResolved = true;
-                        resolve(createGeneratedTexture(index));
-                    }
-                );
-            });
-        }
-
         function createGeneratedTexture(index) {
             const canvas = document.createElement('canvas');
-            canvas.width = 256; canvas.height = 256;
+            canvas.width = 128; canvas.height = 128; // Smaller for speed
             const ctx = canvas.getContext('2d');
 
-            // Golden gradient
-            const grd = ctx.createLinearGradient(0, 0, 256, 256);
-            const hues = [45, 10, 140, 200, 280]; // Gold, Red, Green, Blue, Purple
+            const hues = [45, 10, 140, 200, 280];
             const hue = hues[index % hues.length];
-
+            const grd = ctx.createLinearGradient(0, 0, 128, 128);
             grd.addColorStop(0, `hsl(${hue}, 80%, 20%)`);
             grd.addColorStop(1, `hsl(${hue}, 80%, 40%)`);
 
-            ctx.fillStyle = grd;
-            ctx.fillRect(0, 0, 256, 256);
-
-            // Border
-            ctx.strokeStyle = '#D4AF37';
-            ctx.lineWidth = 15;
-            ctx.strokeRect(0, 0, 256, 256);
-
-            // Text
-            ctx.fillStyle = '#D4AF37';
-            ctx.font = 'bold 40px "Times New Roman"';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.shadowColor = "black";
-            ctx.shadowBlur = 10;
-            ctx.fillText('MAYDAY', 128, 110);
-            ctx.font = '24px serif';
-            ctx.fillStyle = '#fff';
-            ctx.fillText('Photo ' + (index + 1), 128, 160);
+            ctx.fillStyle = grd; ctx.fillRect(0, 0, 128, 128);
+            ctx.strokeStyle = '#D4AF37'; ctx.lineWidth = 8; ctx.strokeRect(0, 0, 128, 128);
+            ctx.fillStyle = '#fff'; ctx.font = '20px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('MAYDAY #' + (index + 1), 64, 64);
 
             const tex = new THREE.CanvasTexture(canvas);
             tex.colorSpace = THREE.SRGBColorSpace;
@@ -460,21 +391,16 @@
         }
 
         // ==========================================
-        // PARTICLE SYSTEM
+        // PARTICLES
         // ==========================================
-
         let shapesMesh, photosMesh;
         let shapesUniforms;
 
-        async function initParticles(textures) {
-            if (textures.length === 0) textures = [createGeneratedTexture(0)];
-
-            // --- System 1: Shapes ---
-            const geomShapes = new THREE.SphereGeometry(0.3, 12, 12);
+        function createShapes() {
+            log("Creating Shapes...");
+            const geomShapes = new THREE.SphereGeometry(0.3, 8, 8);
             const materialShapes = new THREE.MeshStandardMaterial({
-                color: 0xffffff,
-                roughness: 0.3,
-                metalness: 0.8,
+                color: 0xffffff, roughness: 0.3, metalness: 0.8,
             });
 
             materialShapes.onBeforeCompile = (shader) => {
@@ -488,8 +414,6 @@
             attribute vec3 aPosTree;
             attribute vec3 aPosScattered;
             attribute vec3 aColor;
-            attribute float aScale;
-            attribute float aOffset;
             varying vec3 vColor;
         ` + shader.vertexShader;
 
@@ -498,134 +422,103 @@
                     `
             vec3 p1 = aPosTree;
             vec3 p2 = aPosScattered;
-            
-            float t = uTime * 0.5 + aOffset;
-            vec3 noise = vec3(sin(t), cos(t * 0.7), sin(t * 0.3)) * 0.3;
-            
+            float t = uTime * 0.5;
+            vec3 noise = vec3(sin(t), cos(t * 0.7), sin(t * 0.3)) * 0.1;
             vec3 finalPos = mix(p1, p2, uMix);
             if(uMix > 0.5) finalPos += noise;
-
-            vec3 transformed = vec3(position) * aScale;
+            vec3 transformed = vec3(position);
             transformed += finalPos;
-            
             vColor = aColor;
             `
                 );
-
-                shader.fragmentShader = `
-            varying vec3 vColor;
-        ` + shader.fragmentShader;
-
+                shader.fragmentShader = `varying vec3 vColor;` + shader.fragmentShader;
                 shader.fragmentShader = shader.fragmentShader.replace(
                     '#include <color_fragment>',
-                    `
-            #include <color_fragment>
-            diffuseColor.rgb *= vColor;
-            `
+                    `#include <color_fragment>
+            diffuseColor.rgb *= vColor;`
                 );
             };
 
-            const countShapes = 1200;
-            const mesh1 = new THREE.InstancedMesh(geomShapes, materialShapes, countShapes);
+            const count = CONFIG.particleCount;
+            const mesh = new THREE.InstancedMesh(geomShapes, materialShapes, count);
 
-            // Fill Attributes
-            const posTree1 = new Float32Array(countShapes * 3);
-            const posScat1 = new Float32Array(countShapes * 3);
-            const colors1 = new Float32Array(countShapes * 3);
-            const scales1 = new Float32Array(countShapes * 1);
-            const offsets1 = new Float32Array(countShapes * 1);
-
+            const posTree = new Float32Array(count * 3);
+            const posScat = new Float32Array(count * 3);
+            const colors = new Float32Array(count * 3);
             const dummy = new THREE.Object3D();
 
-            for (let i = 0; i < countShapes; i++) {
+            for (let i = 0; i < count; i++) {
                 dummy.position.set(0, 0, 0);
                 dummy.updateMatrix();
-                mesh1.setMatrixAt(i, dummy.matrix);
+                mesh.setMatrixAt(i, dummy.matrix);
 
                 // Tree
                 const angle = i * 0.2;
-                const h = (i / countShapes) * 12 - 6;
+                const h = (i / count) * 12 - 6;
                 const r = (1 - (h + 6) / 12) * 5;
                 const randR = r + (Math.random() - 0.5);
-                posTree1[i * 3] = Math.cos(angle) * randR;
-                posTree1[i * 3 + 1] = h;
-                posTree1[i * 3 + 2] = Math.sin(angle) * randR;
+                posTree[i * 3] = Math.cos(angle) * randR;
+                posTree[i * 3 + 1] = h;
+                posTree[i * 3 + 2] = Math.sin(angle) * randR;
 
-                // Scatter
-                posScat1[i * 3] = (Math.random() - 0.5) * 25;
-                posScat1[i * 3 + 1] = (Math.random() - 0.5) * 25;
-                posScat1[i * 3 + 2] = (Math.random() - 0.5) * 25;
+                // Scat
+                posScat[i * 3] = (Math.random() - 0.5) * 20;
+                posScat[i * 3 + 1] = (Math.random() - 0.5) * 20;
+                posScat[i * 3 + 2] = (Math.random() - 0.5) * 20;
 
-                // Color
                 const c = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-                colors1[i * 3] = c.r;
-                colors1[i * 3 + 1] = c.g;
-                colors1[i * 3 + 2] = c.b;
-
-                scales1[i] = Math.random() * 0.5 + 0.2;
-                offsets1[i] = Math.random() * 100;
+                colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
             }
 
-            mesh1.geometry.setAttribute('aPosTree', new THREE.InstancedBufferAttribute(posTree1, 3));
-            mesh1.geometry.setAttribute('aPosScattered', new THREE.InstancedBufferAttribute(posScat1, 3));
-            mesh1.geometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(colors1, 3));
-            mesh1.geometry.setAttribute('aScale', new THREE.InstancedBufferAttribute(scales1, 1));
-            mesh1.geometry.setAttribute('aOffset', new THREE.InstancedBufferAttribute(offsets1, 1));
+            mesh.geometry.setAttribute('aPosTree', new THREE.InstancedBufferAttribute(posTree, 3));
+            mesh.geometry.setAttribute('aPosScattered', new THREE.InstancedBufferAttribute(posScat, 3));
+            mesh.geometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(colors, 3));
 
-            shapesMesh = mesh1;
-            scene.add(shapesMesh);
-
-
-            // --- System 2: Photos ---
-            const photoGroup = new THREE.Group();
-            photoGroup.userData.particles = [];
-
-            const geomPhoto = new THREE.PlaneGeometry(1.5, 1.5);
-            const photoCount = 40;
-
-            for (let i = 0; i < photoCount; i++) {
-                const tex = textures[i % textures.length];
-                const mat = new THREE.MeshBasicMaterial({
-                    map: tex,
-                    side: THREE.DoubleSide,
-                    transparent: true,
-                    opacity: 0.95
-                });
-
-                const mesh = new THREE.Mesh(geomPhoto, mat);
-
-                // Spiral
-                const angle = i * 0.8;
-                const h = (Math.random()) * 10 - 5;
-                const r = (1 - (h + 5) / 10) * 5.0;
-                const pTree = new THREE.Vector3(Math.cos(angle) * r, h, Math.sin(angle) * r);
-                const pScat = new THREE.Vector3((Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20);
-
-                mesh.userData = {
-                    id: i,
-                    posTree: pTree,
-                    posScat: pScat,
-                    currentPos: pTree.clone(),
-                    rotationSpeed: new THREE.Vector3(Math.random() * 0.02, Math.random() * 0.02, 0)
-                };
-
-                mesh.position.copy(pTree);
-                mesh.lookAt(0, h, 0);
-
-                photoGroup.add(mesh);
-            }
-
-            scene.add(photoGroup);
-            photosMesh = photoGroup;
+            shapesMesh = mesh;
+            scene.add(mesh);
+            log("Shapes added.");
         }
 
+        function createPhotos(textures) {
+            log("Creating Photos...");
+            const group = new THREE.Group();
+            const geom = new THREE.PlaneGeometry(1.5, 1.5);
+            const count = 30;
+
+            for (let i = 0; i < count; i++) {
+                const tex = textures[i % textures.length];
+                const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+                const mesh = new THREE.Mesh(geom, mat);
+
+                const angle = i * 0.8;
+                const h = (Math.random()) * 8 - 4;
+                const r = (1 - (h + 4) / 8) * 4;
+                const pTree = new THREE.Vector3(Math.cos(angle) * r, h, Math.sin(angle) * r);
+                const pScat = new THREE.Vector3((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15);
+
+                mesh.userData = {
+                    id: i, posTree: pTree, posScat: pScat,
+                    rotSpeed: { x: Math.random() * 0.02, y: Math.random() * 0.02 }
+                };
+                mesh.position.copy(pTree);
+                mesh.lookAt(0, h, 0);
+                group.add(mesh);
+            }
+            photosMesh = group;
+            scene.add(group);
+            log("Photos added.");
+        }
 
         // ==========================================
         // ANIMATION
         // ==========================================
-        const raycaster = new THREE.Raycaster();
+        const clock = new THREE.Clock();
 
-        function animateParticles(time) {
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            // Loop
             if (shapesUniforms) {
                 shapesUniforms.uTime.value = time;
                 shapesUniforms.uMix.value = STATE.mixRatio;
@@ -635,193 +528,153 @@
                 photosMesh.children.forEach(mesh => {
                     const data = mesh.userData;
                     let target = new THREE.Vector3();
-
                     if (STATE.mode === 'FOCUS' && STATE.focusIndex === data.id) {
-                        // Focus
-                        const direction = new THREE.Vector3();
-                        camera.getWorldDirection(direction);
-                        target.copy(camera.position).add(direction.multiplyScalar(4));
-
+                        const dir = new THREE.Vector3();
+                        camera.getWorldDirection(dir);
+                        target.copy(camera.position).add(dir.multiplyScalar(4));
                         mesh.lookAt(camera.position);
-                        const scale = 2.0;
-                        mesh.scale.setLerp(new THREE.Vector3(scale, scale, scale), 0.1);
-
+                        mesh.scale.setScalar(2);
                     } else {
-                        // Normal
-                        const p1 = data.posTree;
-                        const p2 = data.posScat;
-
-                        target.lerpVectors(p1, p2, STATE.mixRatio);
-
+                        target.lerpVectors(data.posTree, data.posScat, STATE.mixRatio);
                         if (STATE.mixRatio > 0.5) {
-                            target.x += Math.sin(time + data.id) * 0.02;
-                            target.y += Math.cos(time * 0.9 + data.id) * 0.02;
-                            mesh.rotation.x += data.rotationSpeed.x;
-                            mesh.rotation.y += data.rotationSpeed.y;
+                            target.y += Math.cos(time + data.id) * 0.01;
+                            mesh.rotation.y += data.rotSpeed.y;
                         }
-                        mesh.scale.setLerp(new THREE.Vector3(1, 1, 1), 0.1);
+                        mesh.scale.setScalar(1);
                     }
-
-                    mesh.position.lerp(target, 0.08);
+                    mesh.position.lerp(target, 0.1);
                 });
             }
+
+            controls.update();
+            composer.render();
         }
 
         // ==========================================
-        // GESTURE & INTERACTION
+        // INIT ROUTINE
         // ==========================================
-        function toMode(mode) {
-            if (STATE.mode === mode && mode !== 'FOCUS') return;
-            STATE.mode = mode;
+        window.onload = function () {
+            log("Window Loaded. Initialization...");
 
+            // 1. Create content IMMEDIATELY with procedural textures (FAIL SAFE)
+            // We do NOT wait for file loading initially.
+            createShapes();
+
+            const initialTextures = [];
+            for (let i = 0; i < 5; i++) initialTextures.push(createGeneratedTexture(i));
+            createPhotos(initialTextures);
+
+            // 2. Start loop logic
+            animate();
+
+            // 3. Reveal Button
+            document.getElementById('loader-msg').innerText = "Ready!";
+            const btn = document.getElementById('enter-btn');
+            btn.style.display = 'block';
+
+            // 4. Bind Start
+            btn.addEventListener('click', () => {
+                log("Enter clicked.");
+                gsap.to('#loader', {
+                    opacity: 0, duration: 1, onComplete: () => {
+                        document.getElementById('loader').style.display = 'none';
+                    }
+                });
+
+                // Try Camera
+                if (typeof Camera !== 'undefined' && typeof Hands !== 'undefined') {
+                    log("Starting Camera...");
+                    startCamera();
+                } else {
+                    log("MediaPipe libs missing? Check internet.");
+                }
+            });
+        };
+
+        // ==========================================
+        // CAMERA & GESTURE
+        // ==========================================
+        function startCamera() {
+            const videoElement = document.getElementById('input-video');
+            const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
+
+            hands.onResults(onHandResults);
+
+            const cameraUtils = new Camera(videoElement, {
+                onFrame: async () => { await hands.send({ image: videoElement }); },
+                width: 320, height: 240
+            });
+            cameraUtils.start().catch(e => log("Cam Error: " + e));
+        }
+
+        function onHandResults(results) {
+            if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
+            const lm = results.multiHandLandmarks[0];
+
+            // Simple Gesture
+            const tip = lm[8]; const thumb = lm[4];
+            const pinch = Math.sqrt((tip.x - thumb.x) ** 2 + (tip.y - thumb.y) ** 2) < 0.05;
+
+            if (pinch) {
+                // Pinch Logic (Simplified)
+                if (STATE.mode === 'SCATTERED') raycastPhoto(lm);
+            } else {
+                // Fist/Open logic... simplified for robust run
+                const tips = [8, 12, 16, 20]; const bases = [5, 9, 13, 17];
+                let open = 0;
+                tips.forEach((t, i) => { if (lm[t].y < lm[bases[i]].y) open++; }); // Y is inverted usually? Check coords.
+                // Mediapipe: Y increases downwards. So TIP < BASE means UP (Open)
+
+                if (open >= 3) changeMode('SCATTERED');
+                else if (open <= 1) changeMode('TREE');
+            }
+        }
+
+        function changeMode(m) {
+            if (STATE.mode === m) return;
+            STATE.mode = m;
             const t = document.getElementById('mode-text');
-            if (mode === 'TREE') {
+            if (m === 'TREE') {
                 t.innerText = "圣诞树";
-                gsap.to(STATE, { mixRatio: 0, duration: 1.5, ease: "power2.inOut" });
+                gsap.to(STATE, { mixRatio: 0, duration: 1 });
                 controls.autoRotate = true;
-            } else if (mode === 'SCATTERED') {
+            } else {
                 t.innerText = "星空漫游";
-                gsap.to(STATE, { mixRatio: 1, duration: 1.5, ease: "power2.inOut" });
+                gsap.to(STATE, { mixRatio: 1, duration: 1 });
                 STATE.focusIndex = -1;
                 controls.autoRotate = true;
-            } else if (mode === 'FOCUS') {
-                t.innerText = "查看照片";
-                controls.autoRotate = false;
             }
         }
 
-        function handleGesture(type, landmarks) {
-            if (type === STATE.hand.gesture) return;
-            STATE.hand.gesture = type;
-
-            if (type === 'FIST') toMode('TREE');
-            else if (type === 'OPEN') toMode('SCATTERED');
-            else if (type === 'PINCH' && STATE.mode === 'SCATTERED') {
-                findFocusPhoto(landmarks);
-            }
-        }
-
-        function findFocusPhoto(landmarks) {
-            const vals = landmarks[8];
-            const x = (vals.x * 2 - 1) * -1;
-            const y = (vals.y * 2 - 1) * -1;
-
+        const raycaster = new THREE.Raycaster();
+        function raycastPhoto(lm) {
+            // lm x,y are 0-1.
+            const x = (lm[8].x * 2 - 1) * -1;
+            const y = (lm[8].y * 2 - 1) * -1;
             raycaster.setFromCamera({ x, y }, camera);
             if (photosMesh) {
-                const intersects = raycaster.intersectObjects(photosMesh.children);
-                if (intersects.length > 0) {
-                    STATE.focusIndex = intersects[0].object.userData.id;
-                    toMode('FOCUS');
+                const hits = raycaster.intersectObjects(photosMesh.children);
+                if (hits.length > 0) {
+                    STATE.focusIndex = hits[0].object.userData.id;
+                    changeMode('FOCUS');
+                    document.getElementById('mode-text').innerText = "查看照片";
+                    controls.autoRotate = false;
                 }
             }
         }
 
-        // MediaPipe
-        const videoElement = document.getElementById('input-video');
-        const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
-        hands.onResults((results) => {
-            const lm = results.multiHandLandmarks ? results.multiHandLandmarks[0] : null;
-            if (lm) {
-                STATE.hand.detected = true;
-                const tips = [8, 12, 16, 20];
-                const bases = [5, 9, 13, 17];
-                let openCount = 0;
-                tips.forEach((t, i) => { if (dist(lm[t], lm[0]) > dist(lm[bases[i]], lm[0]) * 1.3) openCount++; });
-
-                const pinchDist = dist(lm[4], lm[8]);
-                if (pinchDist < 0.05) handleGesture('PINCH', lm);
-                else if (openCount >= 4) handleGesture('OPEN', lm);
-                else if (openCount === 0) handleGesture('FIST', lm);
-
-                if (STATE.mode === 'SCATTERED' && STATE.hand.gesture === 'OPEN') {
-                    const palm = lm[9];
-                    const nx = (palm.x - 0.5) * -1;
-                    const ny = (palm.y - 0.5) * 1;
-                    gsap.to(camera.position, { x: nx * 15, y: ny * 5 + 2, duration: 1 });
-                    camera.lookAt(0, 0, 0);
-                }
-            } else {
-                STATE.hand.detected = false;
-                if (STATE.mode === 'FOCUS') toMode('SCATTERED');
-            }
-        });
-
-        function dist(p1, p2) { return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2 + (p1.z || 0 - p2.z || 0) ** 2); }
-        const cameraUtils = new Camera(videoElement, { onFrame: async () => await hands.send({ image: videoElement }), width: 320, height: 240 });
-
-        // ==========================================
-        // FILE UPLOAD
-        // ==========================================
+        // Upload Listener
         document.getElementById('file-input').addEventListener('change', async (e) => {
             if (e.target.files && e.target.files.length > 0) {
-                const newUrls = Array.from(e.target.files).map(f => URL.createObjectURL(f));
-                // Force load files directly (Blob URL usually works even on file://)
-                // Check if we need to wrap fallback again for blob urls (should be fine)
-                const newTextures = await Promise.all(newUrls.map(url => {
-                    return new Promise(resolve => {
-                        new THREE.TextureLoader().load(url, tex => {
-                            tex.colorSpace = THREE.SRGBColorSpace;
-                            resolve(tex);
-                        });
-                    });
-                }));
-
-                if (photosMesh) { scene.remove(photosMesh); photosMesh = null; }
-                const photoGroup = new THREE.Group();
-                const geomPhoto = new THREE.PlaneGeometry(1.5, 1.5);
-
-                for (let i = 0; i < 40; i++) {
-                    const tex = newTextures[i % newTextures.length];
-                    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
-                    const mesh = new THREE.Mesh(geomPhoto, mat);
-                    const angle = i * 0.8;
-                    const h = (Math.random()) * 10 - 5;
-                    const r = (1 - (h + 5) / 10) * 5.0;
-                    const pTree = new THREE.Vector3(Math.cos(angle) * r, h, Math.sin(angle) * r);
-                    const pScat = new THREE.Vector3((Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20);
-                    mesh.userData = { id: i, posTree: pTree, posScat: pScat, rotationSpeed: new THREE.Vector3(Math.random() * 0.02, Math.random() * 0.02, 0) };
-                    mesh.position.copy(pTree);
-                    mesh.lookAt(0, h, 0);
-                    photoGroup.add(mesh);
-                }
-                scene.add(photoGroup);
-                photosMesh = photoGroup;
+                log("Files selected: " + e.target.files.length);
+                const urls = Array.from(e.target.files).map(f => URL.createObjectURL(f));
+                // Reload photos
+                // Load textures from blob
+                const newTexs = await Promise.all(urls.map(u => new Promise(r => new THREE.TextureLoader().load(u, r))));
+                scene.remove(photosMesh);
+                createPhotos(newTexs);
             }
-        });
-
-        // ==========================================
-        // MAIN START
-        // ==========================================
-        document.getElementById('enter-btn').addEventListener('click', () => {
-            gsap.to('#loader', { opacity: 0, duration: 1, onComplete: () => document.getElementById('loader').style.display = 'none' });
-            cameraUtils.start();
-        });
-
-        // Kickoff
-        (async () => {
-            // Parallel load with fallback
-            const textures = await Promise.all(CONFIG.assets.map((url, i) => loadTextureWithFallback(url, i)));
-            await initParticles(textures);
-
-            document.getElementById('enter-btn').style.display = 'block';
-
-            const clock = new THREE.Clock();
-            function animate() {
-                requestAnimationFrame(animate);
-                const time = clock.getElapsedTime();
-                animateParticles(time);
-                controls.update();
-                composer.render();
-            }
-            animate();
-        })();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            composer.setSize(window.innerWidth, window.innerHeight);
         });
 
     </script>
