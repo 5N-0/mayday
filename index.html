@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mayday Merry Christmas WebGL</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
+
+        :root {
+            --color-bg: #0f2215;
+            /* Deep Matte Green */
+            --color-gold: #D4AF37;
+            --color-red: #C41E3A;
+            --font-main: 'Cinzel', serif;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--color-bg);
+            background: radial-gradient(circle at center, #1a3c24 0%, #050f08 100%);
+            font-family: var(--font-main);
+            color: var(--color-gold);
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin: 0;
+            letter-spacing: 0.2rem;
+            background: linear-gradient(to bottom, #fff4cc, #D4AF37);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-panel {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            text-align: right;
+            background: rgba(0, 20, 10, 0.6);
+            padding: 1rem;
+            border: 1px solid var(--color-gold);
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+        }
+
+        .status-item {
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .status-value {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--color-bg);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: all;
+            transition: opacity 1s ease;
+        }
+
+        .loader-btn {
+            margin-top: 2rem;
+            padding: 1rem 3rem;
+            background: transparent;
+            border: 2px solid var(--color-gold);
+            color: var(--color-gold);
+            font-family: var(--font-main);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .loader-btn:hover {
+            background: var(--color-gold);
+            color: var(--color-bg);
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+        }
+
+        /* Hand Video Preview - Styled nicely */
+        #video-container {
+            position: absolute;
+            bottom: 2rem;
+            left: 2rem;
+            width: 200px;
+            height: 150px;
+            border: 2px solid var(--color-gold);
+            border-radius: 10px;
+            overflow: hidden;
+            opacity: 0.7;
+            z-index: 2;
+            /* Above canvas */
+            transform-origin: bottom left;
+            transition: transform 0.3s ease;
+        }
+
+        #video-container:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        #input-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            /* Mirror */
+        }
+
+        /* Instructions */
+        .instructions {
+            position: absolute;
+            bottom: 2rem;
+            right: 2rem;
+            text-align: right;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.8rem;
+        }
+
+        .key {
+            color: var(--color-gold);
+            font-weight: bold;
+        }
+    </style>
+
+    <!-- Import Maps -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <!-- GSAP for animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+
+<body>
+
+    <div id="loading-screen">
+        <h1>Merry Christmas</h1>
+        <p>Interactive 3D Experience</p>
+        <button id="start-btn" class="loader-btn">Enter Experience</button>
+    </div>
+
+    <div id="ui-layer">
+        <header>
+            <h1>Mayday Xmas</h1>
+        </header>
+
+        <div class="status-panel">
+            <div class="status-item">Mode: <span id="mode-display" class="status-value">Tree</span></div>
+            <div class="status-item">Hand: <span id="hand-display" class="status-value">Not Detected</span></div>
+            <div class="status-item">Gesture: <span id="gesture-display" class="status-value">-</span></div>
+        </div>
+
+        <div class="instructions">
+            <p><span class="key">Fist</span>: Tree Mode</p>
+            <p><span class="key">Open Palm</span>: Galaxy Mode</p>
+            <p><span class="key">Move Hand</span>: Rotate View</p>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="video-container">
+        <video id="input-video"></video>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+        // --- Configuration ---
+        const CONFIG = {
+            count: 3000,
+            colors: [0x2A5F3A, 0xD4AF37, 0xC41E3A, 0xFFFFFF], // Green, Gold, Red, White
+            photos: [
+                'picture/bule.png',
+                'picture/green.png',
+                'picture/orange.png',
+                'picture/pink.png',
+                'picture/yellow.png'
+            ]
+        };
+
+        // --- State ---
+        const STATE = {
+            mode: 'TREE', // TREE, SCATTERED
+            gesture: 'NONE',
+            targetMix: 0, // 0 for Tree, 1 for Scattered
+            mix: 0,
+            mouse: new THREE.Vector2(),
+            handPos: new THREE.Vector2()
+        };
+
+        // --- Three.js Setup ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        // scene.fog = new THREE.FogExp2(0x0f2215, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 15);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.enableZoom = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+
+        // --- Post Processing ---
+        const renderScene = new RenderPass(scene, camera);
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloomPass.threshold = 0.2;
+        bloomPass.strength = 1.2;
+        bloomPass.radius = 0.5;
+
+        const composer = new EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
+
+        // --- Assets Loading ---
+        const textureLoader = new THREE.TextureLoader();
+        const loadedTextures = CONFIG.photos.map(url => textureLoader.load(url));
+
+        // --- Particles ---
+
+        // Geometry: Instanced Buffer
+        const baseGeometry = new THREE.PlaneGeometry(0.5, 0.5);
+        const instancedGeometry = new THREE.InstancedBufferGeometry();
+        instancedGeometry.index = baseGeometry.index;
+        instancedGeometry.attributes.position = baseGeometry.attributes.position;
+        instancedGeometry.attributes.uv = baseGeometry.attributes.uv;
+
+        // Attributes Data
+        const particleCount = CONFIG.count;
+        const posTree = [];
+        const posScattered = [];
+        const colors = [];
+        const offsets = []; // For animation variation
+        const types = []; // 0: shape, 1: photo
+
+        const colorPalette = new THREE.Color();
+
+        for (let i = 0; i < particleCount; i++) {
+            // Tree position (Cone Spiral)
+            const angle = i * 0.1;
+            const height = (i / particleCount) * 10 - 5; // -5 to 5
+            const radius = (1 - (height + 5) / 10) * 4; // Tapering
+            const r = radius * Math.random(); // volume
+            const x1 = Math.cos(angle) * r;
+            const y1 = height;
+            const z1 = Math.sin(angle) * r;
+            posTree.push(x1, y1, z1);
+
+            // Scattered position (Random Box)
+            const range = 20;
+            const x2 = (Math.random() - 0.5) * range;
+            const y2 = (Math.random() - 0.5) * range;
+            const z2 = (Math.random() - 0.5) * range;
+            posScattered.push(x2, y2, z2);
+
+            // Colors
+            colorPalette.setHex(CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)]);
+            colors.push(colorPalette.r, colorPalette.g, colorPalette.b);
+
+            // Offset
+            offsets.push(Math.random() * 100);
+
+            // Type
+            // 90% shapes, 10% photos
+            types.push(Math.random() > 0.9 ? 1 : 0);
+        }
+
+        instancedGeometry.setAttribute('aPosTree', new THREE.InstancedBufferAttribute(new Float32Array(posTree), 3));
+        instancedGeometry.setAttribute('aPosScattered', new THREE.InstancedBufferAttribute(new Float32Array(posScattered), 3));
+        instancedGeometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(new Float32Array(colors), 3));
+        instancedGeometry.setAttribute('aOffset', new THREE.InstancedBufferAttribute(new Float32Array(offsets), 1));
+        instancedGeometry.setAttribute('aType', new THREE.InstancedBufferAttribute(new Float32Array(types), 1));
+
+        // Shader Material
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uMix: { value: 0 },
+                uTex0: { value: loadedTextures[0] },
+                uTex1: { value: loadedTextures[1] },
+                uTex2: { value: loadedTextures[2] },
+                uTex3: { value: loadedTextures[3] },
+                uTex4: { value: loadedTextures[4] }
+            },
+            vertexShader: `
+                uniform float uTime;
+                uniform float uMix;
+                
+                attribute vec3 aPosTree;
+                attribute vec3 aPosScattered;
+                attribute vec3 aColor;
+                attribute float aOffset;
+                attribute float aType;
+
+                varying vec3 vColor;
+                varying vec2 vUv;
+                varying float vType;
+
+                // Noise function
+                vec3 snoiseVec3( vec3 x ){
+                  float s  = sin(x.x);
+                  float c  = cos(x.y);
+                  return vec3(s, c, s*c);
+                }
+
+                void main() {
+                    vUv = uv;
+                    vColor = aColor;
+                    vType = aType;
+
+                    // Interpolate positions
+                    vec3 pos = mix(aPosTree, aPosScattered, uMix);
+
+                    // Add floating motion
+                    float noiseFreq = 0.5;
+                    float noiseAmp = 0.1;
+                    vec3 noisePos = vec3(pos.x * noiseFreq + uTime * 0.5, pos.y * noiseFreq + uTime * 0.5, pos.z * noiseFreq);
+                    pos += snoiseVec3(noisePos + aOffset) * noiseAmp;
+
+                    // Spin for scattered mode
+                    if (uMix > 0.5) {
+                         // Add some rotation if needed
+                    }
+
+                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                    
+                    // Billboard effect (always face camera) - modified for InstancedMesh
+                    // Actually, simple billboard is tricky in vertex shader without rotate, 
+                    // but for Planes looking at camera:
+                    // We can just add vertex position to the instance center in view space
+                    
+                    // Standard way for billboarding in vertex shader:
+                    // 1. Get instance center in view space
+                    // 2. Add vertex offset (scaled)
+                    
+                    // However, we are transforming "pos" which is WORLD space (mostly).
+                    // Let's stick to world space simple billboard
+                    
+                    // Alternative: standard MVP
+                    // gl_Position = projectionMatrix * mvPosition;
+                    
+                    // Let's try to make them face camera
+                    vec4 instanceCenter = modelViewMatrix * vec4(pos, 1.0);
+                    // This is center in view space.
+                    // Now add the vertex offset (position) which is the plane geometry (-0.5 to 0.5)
+                    // We assume the plane is XY.
+                    
+                    float scale = (aType > 0.5) ? 1.5 : 0.5; // Photos bigger
+                    
+                    vec3 vertexOffset = position * scale;
+                    instanceCenter.xyz += vertexOffset;
+                    
+                    gl_Position = projectionMatrix * instanceCenter;
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D uTex0;
+                uniform sampler2D uTex1;
+                uniform sampler2D uTex2;
+                uniform sampler2D uTex3;
+                uniform sampler2D uTex4;
+                
+                varying vec3 vColor;
+                varying vec2 vUv;
+                varying float vType;
+
+                void main() {
+                    vec4 finalColor;
+
+                    if (vType > 0.5) {
+                        // It's a photo! Randomly pick a texture based on Color maybe? 
+                        // Or just cycle through based on some hash. Here we simplistically pick one or blend.
+                        // GLSL doesn't support array access by non-constant easily in WebGL1, but WebGL2 does.
+                        // We'll just define one for now or use vColor to mix.
+                        
+                        // Hack: use color R channel to pick texture 0-4
+                        float idx = floor(vColor.r * 5.0);
+                        vec4 texCol;
+                        if(idx < 1.0) texCol = texture2D(uTex0, vUv);
+                        else if(idx < 2.0) texCol = texture2D(uTex1, vUv);
+                        else if(idx < 3.0) texCol = texture2D(uTex2, vUv);
+                        else if(idx < 4.0) texCol = texture2D(uTex3, vUv);
+                        else texCol = texture2D(uTex4, vUv);
+                        
+                        finalColor = texCol;
+                        if (finalColor.a < 0.1) discard;
+                    } else {
+                        // It's a shape (circle/glow)
+                        float dist = length(vUv - 0.5);
+                        if (dist > 0.5) discard;
+                        float alpha = 1.0 - smoothstep(0.3, 0.5, dist);
+                        finalColor = vec4(vColor, alpha);
+                    }
+
+                    gl_FragColor = finalColor;
+                }
+            `,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            side: THREE.DoubleSide
+        });
+
+        const mesh = new THREE.InstancedMesh(instancedGeometry, material, particleCount);
+        scene.add(mesh);
+
+        // --- Gesture Logic ---
+        function updateState(handLandmarks) {
+            if (!handLandmarks) {
+                document.getElementById('hand-display').innerText = "Not Detected";
+                document.getElementById('hand-display').style.color = "#C41E3A";
+                STATE.gesture = 'NONE';
+                controls.autoRotate = true; // Idle rotate
+                return;
+            }
+
+            document.getElementById('hand-display').innerText = "Detected";
+            document.getElementById('hand-display').style.color = "#D4AF37";
+            controls.autoRotate = false;
+
+            // Simple Gesture Recognition
+            const fingertips = [8, 12, 16, 20];
+            const fingerbases = [5, 9, 13, 17];
+
+            // Check open palm vs fist
+            let fingersOpen = 0;
+            for (let i = 0; i < 4; i++) {
+                if (handLandmarks[fingertips[i]].y < handLandmarks[fingerbases[i]].y) { // Y is inverted in some coords, but let's check distance
+                    // Distance from wrist (0)
+                    const tipDist = dist(handLandmarks[fingertips[i]], handLandmarks[0]);
+                    const baseDist = dist(handLandmarks[fingerbases[i]], handLandmarks[0]);
+                    if (tipDist > baseDist) fingersOpen++;
+                }
+            }
+
+            // Adjust gesture sensitivity
+            if (fingersOpen >= 3) {
+                setMode('SCATTERED');
+                STATE.gesture = 'OPEN';
+            } else if (fingersOpen <= 1) {
+                setMode('TREE');
+                STATE.gesture = 'FIST';
+            } else {
+                STATE.gesture = 'HOLD';
+            }
+
+            document.getElementById('gesture-display').innerText = STATE.gesture;
+
+            // Camera Interaction
+            // Use palm center (9) to rotate camera
+            const palm = handLandmarks[9];
+            // Normalize x, y (-1 to 1)
+            const nx = (palm.x - 0.5) * 2;
+            const ny = (palm.y - 0.5) * 2;
+
+            // Influence camera rotation speed (if in scattered mode usually, or general interaction)
+            // Here we map hand X position to camera rotation
+            // We can tween the camera rotation
+            const targetRot = nx * 2;
+
+            // Gentle push to controls
+            controls.autoRotateSpeed = -nx * 10;
+        }
+
+        function dist(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        function setMode(newMode) {
+            if (STATE.mode === newMode) return;
+            STATE.mode = newMode;
+            document.getElementById('mode-display').innerText = STATE.mode;
+
+            if (newMode === 'TREE') {
+                gsap.to(STATE, { targetMix: 0, duration: 2, ease: "power2.inOut" });
+            } else if (newMode === 'SCATTERED') {
+                gsap.to(STATE, { targetMix: 1, duration: 2, ease: "power2.inOut" });
+            }
+        }
+
+        // --- MediaPipe Setup ---
+        const videoElement = document.getElementById('input-video');
+
+        const hands = new Hands({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults((results) => {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                updateState(results.multiHandLandmarks[0]);
+            } else {
+                updateState(null);
+            }
+        });
+
+        const cameraUtils = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 320,
+            height: 240
+        });
+
+        // --- Main Loop ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+
+            // Animate mix Uniform
+            STATE.mix += (STATE.targetMix - STATE.mix) * 0.05;
+            material.uniforms.uMix.value = STATE.mix;
+            material.uniforms.uTime.value = clock.getElapsedTime();
+
+            controls.update();
+            composer.render();
+        }
+
+        // --- Start Handler ---
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('loading-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loading-screen').style.display = 'none';
+            }, 1000);
+
+            cameraUtils.start();
+            animate();
+        });
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+
+</html>
