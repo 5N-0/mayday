@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive 3D Particles</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* UI Panel */
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 10;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            transition: opacity 0.3s;
+        }
+
+        .section-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.7;
+            margin-bottom: 10px;
+        }
+
+        /* Shape Buttons */
+        .shape-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn.active {
+            background: #fff;
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* Color Picker */
+        .color-row {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .color-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .color-btn.active {
+            border-color: white;
+            transform: scale(1.2);
+        }
+
+        /* Camera Preview */
+        .cam-container {
+            width: 100%;
+            height: 150px;
+            background: black;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            opacity: 0.7;
+        }
+
+        /* Fullscreen Btn */
+        .fullscreen-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: none;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            z-index: 20;
+        }
+
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 20px;
+            transition: opacity 0.5s;
+        }
+    </style>
+
+    <!-- Dependencies -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/vision_bundle.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+
+<body>
+
+    <div id="loading">Initializing System...</div>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-panel">
+        <div>
+            <div class="section-title">Model Shape</div>
+            <div class="shape-grid">
+                <button class="btn active" onclick="setShape('heart')">Heart ❤️</button>
+                <button class="btn" onclick="setShape('flower')">Flower 🌸</button>
+                <button class="btn" onclick="setShape('saturn')">Saturn 🪐</button>
+                <button class="btn" onclick="setShape('buddha')">Buddha 🧘</button>
+                <button class="btn" onclick="setShape('firework')">Firework 🎆</button>
+            </div>
+        </div>
+
+        <div>
+            <div class="section-title">Particle Color</div>
+            <div class="color-row">
+                <!-- 'bule.png' typo handled in JS logic -->
+                <div class="color-btn active" style="background:#2196F3" onclick="setColor('blue', this)"></div>
+                <div class="color-btn" style="background:#4CAF50" onclick="setColor('green', this)"></div>
+                <div class="color-btn" style="background:#FF9800" onclick="setColor('orange', this)"></div>
+                <div class="color-btn" style="background:#E91E63" onclick="setColor('pink', this)"></div>
+                <div class="color-btn" style="background:#FFEB3B" onclick="setColor('yellow', this)"></div>
+            </div>
+        </div>
+
+        <div>
+            <div class="section-title">Hand Control</div>
+            <div class="cam-container">
+                <video id="webcam" autoplay playsinline></video>
+                <div style="position: absolute; bottom: 5px; left: 5px; font-size: 10px; color: rgba(255,255,255,0.5);">
+                    Hand Input</div>
+            </div>
+        </div>
+    </div>
+
+    <button class="fullscreen-btn" onclick="toggleFullScreen()">⛶ Full Screen</button>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ==========================================
+        // CONFIG
+        // ==========================================
+        const PARTICLE_COUNT = 15000; // High count for definition
+        const CONFIG = {
+            color: 'blue',
+            shape: 'heart',
+            handOpenness: 0, // 0 = closed, 1 = open
+            targetOpenness: 0
+        };
+
+        // Map color names to file paths (Note: bule.png typo)
+        const TEXTURES = {
+            blue: 'picture/bule.png',
+            green: 'picture/green.png',
+            orange: 'picture/orange.png',
+            pink: 'picture/pink.png',
+            yellow: 'picture/yellow.png'
+        };
+
+        // ==========================================
+        // THREE.JS SETUP
+        // ==========================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        // scene.fog = new THREE.FogExp2(0x050505, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 30;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+
+        // ==========================================
+        // SHAPES GENERATION (Math)
+        // ==========================================
+        function getPointInShape(type, i) {
+            const p = new THREE.Vector3();
+            const x = Math.random();
+
+            switch (type) {
+                case 'heart': {
+                    // Heart Surface
+                    const phi = Math.random() * Math.PI * 2;
+                    const theta = Math.random() * Math.PI;
+                    // A parametric heart shape
+                    // x = 16sin^3(t)
+                    // y = 13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t)
+                    // varying scale to fill volume
+                    const t = phi;
+                    const r = Math.pow(Math.random(), 1 / 3) * 0.5; // distribution
+                    p.x = 16 * Math.pow(Math.sin(t), 3);
+                    p.y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+                    p.z = (Math.random() - 0.5) * 10 * (1 - Math.abs(p.x) / 20); // Thickness
+                    p.multiplyScalar(0.5);
+                    break;
+                }
+                case 'flower': {
+                    // Rose curve: r = cos(k*theta)
+                    const k = 4; // petals
+                    const theta = (i / PARTICLE_COUNT) * Math.PI * 2 * 10; // multiple winds
+                    const rBase = Math.cos(k * theta);
+                    const r = (rBase + 0.5) * 8 * Math.random();
+                    p.x = r * Math.cos(theta);
+                    p.y = r * Math.sin(theta);
+                    p.z = (Math.random() - 0.5) * 5 * (1 - r / 10); // thickness
+                    // Bulge center
+                    if (Math.random() > 0.8) {
+                        p.multiplyScalar(0.5);
+                        p.z += (Math.random() - 0.5) * 5;
+                    }
+                    break;
+                }
+                case 'saturn': {
+                    if (Math.random() > 0.4) {
+                        // Planet
+                        const radius = 6;
+                        const phi = Math.acos(-1 + (2 * Math.random()));
+                        const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
+                        p.setFromSphericalCoords(radius, phi, theta);
+                    } else {
+                        // Rings
+                        const angle = Math.random() * Math.PI * 2;
+                        const rad = 10 + Math.random() * 8;
+                        p.x = Math.cos(angle) * rad;
+                        p.z = Math.sin(angle) * rad;
+                        p.y = (Math.random() - 0.5) * 0.5; // Thin ring
+                        // Tilt
+                        p.applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.4);
+                    }
+                    break;
+                }
+                case 'buddha': {
+                    // Approximated Meditating Figure
+                    const r = Math.random();
+                    if (r < 0.2) {
+                        // Head
+                        const rad = 2.5;
+                        const phi = Math.acos(-1 + 2 * Math.random());
+                        const theta = Math.random() * Math.PI * 2;
+                        p.setFromSphericalCoords(rad, phi, theta);
+                        p.y += 6;
+                    } else if (r < 0.6) {
+                        // Body (Cylinder-like)
+                        const h = (Math.random() - 0.5) * 6;
+                        const rad = 4 - Math.abs(h) * 0.3;
+                        const ang = Math.random() * Math.PI * 2;
+                        p.x = Math.cos(ang) * rad;
+                        p.z = Math.sin(ang) * rad;
+                        p.y = h;
+                    } else {
+                        // Legs (Base) flattened sphere
+                        const theta = Math.random() * Math.PI * 2;
+                        const rad = 5 + Math.random() * 5;
+                        p.x = rad * Math.cos(theta);
+                        p.z = rad * Math.sin(theta);
+                        p.y = -4 + (Math.random() - 0.5) * 2;
+                    }
+                    break;
+                }
+                case 'firework': {
+                    // Explosion sphere
+                    const radius = 15;
+                    const phi = Math.acos(-1 + (2 * Math.random()));
+                    const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
+                    p.setFromSphericalCoords(radius * Math.random(), phi, theta);
+                    // Add some trails?
+                    break;
+                }
+            }
+            return p;
+        }
+
+        // Generate Buffers
+        const geometry = new THREE.BufferGeometry();
+        const initialPos = [];
+        const targetPos = [];
+        const sizes = [];
+
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+            const p = getPointInShape('heart', i);
+            initialPos.push(p.x, p.y, p.z);
+            targetPos.push(p.x, p.y, p.z); // Start with heart
+            sizes.push(Math.random());
+        }
+
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(initialPos, 3));
+        geometry.setAttribute('target', new THREE.Float32BufferAttribute(targetPos, 3).setUsage(THREE.DynamicDrawUsage));
+        geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+
+        // Shader Material
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                uColor: { value: new THREE.Color('#2196F3') },
+                uTexture: { value: null },
+                uTime: { value: 0 },
+                uScale: { value: 1.0 },     // Hand scale
+                uDispersion: { value: 0.0 } // Hand spread
+            },
+            vertexShader: `
+        uniform float uTime;
+        uniform float uScale;
+        uniform float uDispersion;
+        attribute vec3 target;
+        attribute float size;
+        varying float vAlpha;
+
+        // Simplex Noise (simplified)
+        vec3 hash33(vec3 p3) {
+            p3 = fract(p3 * vec3(.1031, .1030, .0973));
+            p3 += dot(p3, p3.yxz+33.33);
+            return fract((p3.xxy + p3.yxx)*p3.zyx);
+        }
+
+        void main() {
+            vec3 pos = mix(position, target, 0.08); // Smooth morphing handling in JS, here we just render position
+            // But wait, we want to morph in JS for simplicity or Shader? 
+            // Let's do morphing in JS update loop to `position` attribute for complex shapes, 
+            // and use Shader for "Hand Interaction" (Scale/Explode)
+            
+            vec3 finalPos = position;
+            
+            // Hand Interaction: Dispersion
+            // Push particles away from center based on noise and uDispersion
+            vec3 noise = hash33(position) - 0.5;
+            vec3 dir = normalize(position);
+            
+            // Scale Effect
+            // uScale varies from 1.0 (closed) to 2.5 (open)
+            finalPos *= uScale;
+            
+            // Dispersion Effect
+            // uDispersion 0 (closed) to 1 (open)
+            finalPos += dir * uDispersion * 10.0;
+            finalPos += noise * uDispersion * 5.0; // Chaos
+
+            vec4 mvPosition = modelViewMatrix * vec4(finalPos, 1.0);
+            
+            // Size attenuation
+            gl_PointSize = (size * 10.0 + 5.0) * ( 20.0 / - mvPosition.z );
+            
+            gl_Position = projectionMatrix * mvPosition;
+            
+            // Fade edge particles
+            vAlpha = 1.0;
+        }
+    `,
+            fragmentShader: `
+        uniform vec3 uColor;
+        uniform sampler2D uTexture;
+        varying float vAlpha;
+
+        void main() {
+            vec4 tex = texture2D(uTexture, gl_PointCoord);
+            if (tex.a < 0.1) discard;
+            
+            // Tint texture with selected color
+            // Assuming texture is white or colored? 
+            // If the pngs are already colored (bule.png is blue), we might mix or just use texture.
+            // Let's mix to ensure consistent brightness.
+            gl_FragColor = vec4(tex.rgb * uColor * 2.0, tex.a * vAlpha); 
+        }
+    `,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            transparent: true
+});
+
+        const particles = new THREE.Points(geometry, material);
+        scene.add(particles);
+
+        // Texture Loader
+        const texLoader = new THREE.TextureLoader();
+        function loadTex(color) {
+            const url = TEXTURES[color];
+            texLoader.load(url, (t) => {
+                material.uniforms.uTexture.value = t;
+                // Also update particle color uniform to match (optional overlay)
+                const cMap = {
+                    blue: '#2196F3',
+                    green: '#4CAF50',
+                    orange: '#FF9800',
+                    pink: '#E91E63',
+                    yellow: '#FFEB3B'
+                };
+                material.uniforms.uColor.value.set(cMap[color]);
+            }, undefined, () => {
+                // Fallback if local file fails (e.g. CORS)
+                console.warn("Texture Load Failed. Using generated fallback.");
+                const cvs = document.createElement('canvas');
+                cvs.width = 32; cvs.height = 32;
+                const ctx = cvs.getContext('2d');
+                ctx.fillStyle = cMap[color] || 'white';
+                ctx.beginPath(); ctx.arc(16, 16, 14, 0, Math.PI * 2); ctx.fill();
+                const t = new THREE.CanvasTexture(cvs);
+                material.uniforms.uTexture.value = t;
+            });
+        }
+        // Init load
+        loadTex('blue');
+
+
+        // ==========================================
+        // MORPHING LOGIC
+        // ==========================================
+        // We'll update the 'position' attribute towards 'target' attribute every frame in JS 
+        // to allow Shape Switching (Geometry CPU morphing) + Hand Handing (Shader GPU displacement).
+
+        // Pre-calc shapes cache? No, just calc on demand to save memory.
+        function updateTargetShape(shape) {
+            const pos = particles.geometry.attributes.position.array;
+            // We don't change 'position' directly, we change a 'target' array in JS and lerp 'position' to it.
+            // Actually, let's keep it simple: 
+            // 1. Calculate new destination
+            // 2. GSAP the values? Too heavy for 15000 points.
+            // 3. Simple lerp in animate loop.
+
+            // Let's refill a JS array 'destPositions'
+            destPositions = new Float32Array(PARTICLE_COUNT * 3);
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const p = getPointInShape(shape, i);
+                destPositions[i * 3] = p.x;
+                destPositions[i * 3 + 1] = p.y;
+                destPositions[i * 3 + 2] = p.z;
+            }
+        }
+        let destPositions = initialPos.slice(); // Float32Array
+        let currentPositions = new Float32Array(initialPos);
+
+
+        // ==========================================
+        // UI & CONTROL
+        // ==========================================
+        window.setShape = (shape) => {
+            // UI Update
+            document.querySelectorAll('.shape-grid .btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Logic Update
+            CONFIG.shape = shape;
+            updateTargetShape(shape);
+        };
+
+        window.setColor = (color, el) => {
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            CONFIG.color = color;
+            loadTex(color);
+        };
+
+        window.toggleFullScreen = () => {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
+        };
+
+
+        // ==========================================
+        // VISION / HAND TRACKING
+        // ==========================================
+        let handLandmarker = undefined;
+
+        async function setupVision() {
+            // Import tasks-vision via CDN in head
+            const { HandLandmarker, FilesetResolver } = window;
+
+            const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+
+            handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+                    delegate: "GPU"
+                },
+                runningMode: "VIDEO",
+                numHands: 1
+            });
+
+            startWebcam();
+        }
+
+        function startWebcam() {
+            const video = document.getElementById('webcam');
+
+            navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+                video.srcObject = stream;
+                video.addEventListener("loadeddata", predictWebcam);
+                document.getElementById('loading').style.opacity = 0;
+                setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+            });
+        }
+
+        function predictWebcam() {
+            const video = document.getElementById('webcam');
+            let lastVideoTime = -1;
+
+            async function loop() {
+                if (video.currentTime !== lastVideoTime) {
+                    lastVideoTime = video.currentTime;
+                    const startTimeMs = performance.now();
+
+                    if (handLandmarker) {
+                        const results = handLandmarker.detectForVideo(video, startTimeMs);
+
+                        if (results.landmarks && results.landmarks.length > 0) {
+                            const lm = results.landmarks[0];
+
+                            // Calc Openness
+                            // Dist between Wrist(0) and Tips(4,8,12,16,20)
+                            const wrist = lm[0];
+                            const tips = [4, 8, 12, 16, 20];
+                            let avgDist = 0;
+                            tips.forEach(t => {
+                                const d = Math.sqrt(Math.pow(lm[t].x - wrist.x, 2) + Math.pow(lm[t].y - wrist.y, 2));
+                                avgDist += d;
+                            });
+                            avgDist /= 5;
+
+                            // Normalize: Closed ~0.15, Open ~0.4 (depends on camera dist, but roughly)
+                            // Dynamic range adjustment needed? Or simple lerp.
+                            let openness = (avgDist - 0.15) * 3.5;
+                            openness = Math.max(0, Math.min(1, openness));
+
+                            CONFIG.targetOpenness = openness;
+                        } else {
+                            // No hand -> Auto Idle breathing
+                            CONFIG.targetOpenness = Math.sin(Date.now() * 0.002) * 0.2 + 0.2;
+                        }
+                    }
+                }
+                requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        setupVision();
+
+
+        // ==========================================
+        // ANIMATION LOOP
+        // ==========================================
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+
+            // 1. Morph Positions (CPU)
+            // Lerp currentPositions -> destPositions
+            // To optimized, iterate buffer directly
+            const positions = particles.geometry.attributes.position.array;
+            for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
+                // Simple Lerp: cur += (target - cur) * 0.1
+                positions[i] += (destPositions[i] - positions[i]) * 0.08;
+            }
+            particles.geometry.attributes.position.needsUpdate = true;
+
+            // 2. Hand Reactions (Uniforms)
+            // Smooth lerp hand value
+            if (Math.abs(CONFIG.handOpenness - CONFIG.targetOpenness) > 0.01) {
+                CONFIG.handOpenness += (CONFIG.targetOpenness - CONFIG.handOpenness) * 0.1; // Smooth lag < 100ms
+            }
+
+            // Map openness (0-1) to Scale (1-3) and Dispersion (0-1)
+            material.uniforms.uScale.value = 1.0 + CONFIG.handOpenness * 2.0;
+            material.uniforms.uDispersion.value = CONFIG.handOpenness * 0.8;
+            material.uniforms.uTime.value += dt;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+
+</html>
